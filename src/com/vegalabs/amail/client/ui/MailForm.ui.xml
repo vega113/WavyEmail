@@ -1,0 +1,83 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+	xmlns:g="urn:import:com.google.gwt.user.client.ui" xmlns:showcase="urn:import:com.vegalabs.amail.client.text">
+	<ui:with field='res'
+		type='com.vegalabs.amail.client.resources.GlobalResources' />
+	<ui:with field='constants'
+		type='com.vegalabs.amail.client.constants.ConstantsImpl' />
+	<g:HTMLPanel>
+		<g:VerticalPanel>
+			<g:VerticalPanel ui:field="loadingPanel">
+				<g:CaptionPanel width='{constants.basicWidthStr}'>
+					<g:HorizontalPanel>
+						<g:HTML width='100px'></g:HTML>
+						<g:HorizontalPanel width='20px'>
+							<g:Image resource='{res.spinner}' ui:field="img1"></g:Image>
+						</g:HorizontalPanel>
+						<g:Label text='{constants.loadingStr}'></g:Label>
+					</g:HorizontalPanel>
+				</g:CaptionPanel>
+
+			</g:VerticalPanel>
+			<g:VerticalPanel ui:field="mainMailPanel">
+				<g:CaptionPanel width='{constants.basicWidthStr}'>
+					<g:HorizontalPanel>
+						<g:Label text='To' width='100px'></g:Label>
+						<g:TextBox width='{constants.basicItemWidthStr}'
+							ui:field="toBox" text='vega113@gmail.com'></g:TextBox>
+					</g:HorizontalPanel>
+				</g:CaptionPanel>
+				<g:CaptionPanel>
+					<g:HorizontalPanel>
+						<g:Label text='From' width='100px'></g:Label>
+						<g:TextBox width='{constants.basicItemWidthStr}'
+							ui:field="fromBox" text='vega113@gmail.com'></g:TextBox>
+					</g:HorizontalPanel>
+				</g:CaptionPanel>
+				<g:CaptionPanel width='{constants.basicWidthStr}'>
+					<g:HorizontalPanel>
+						<g:Label text='Subject' width='100px'></g:Label>
+						<g:TextBox width='{constants.basicItemWidthStr}'
+							ui:field="subjectBox" text='Test email gadget'></g:TextBox>
+					</g:HorizontalPanel>
+				</g:CaptionPanel>
+				<g:CaptionPanel width='{constants.basicWidthStr}'>
+					<g:HorizontalPanel>
+						<g:VerticalPanel>
+							<g:CaptionPanel width='{constants.smallerWidthStr}'>
+								<g:SimplePanel ui:field="richTextToolbarPanel"></g:SimplePanel>
+							</g:CaptionPanel>
+							<g:CaptionPanel width='{constants.smallerWidthStr}'>
+								<g:RichTextArea width='{constants.smallerWidthStr}'
+									height='300px' ui:field="contentRichTextArea" text='Sample content'></g:RichTextArea>
+							</g:CaptionPanel>
+						</g:VerticalPanel>
+					</g:HorizontalPanel>
+				</g:CaptionPanel>
+				<g:CaptionPanel width='{constants.basicWidthStr}'>
+					<g:HorizontalPanel>
+						<g:HorizontalPanel width='50px'>
+<!--							<g:PushButton text='import contacts'></g:PushButton>-->
+						</g:HorizontalPanel>
+						<g:HTML width='445px'></g:HTML>
+						<g:HorizontalPanel width='30px'>
+							<g:Button ui:field="btn3" text='{constants.cancelStr}'></g:Button>
+						</g:HorizontalPanel >
+						<g:HorizontalPanel width='30px'>
+							<g:Button ui:field="btn2" text='{constants.cancelStr}'></g:Button>
+						</g:HorizontalPanel >
+						<g:cell horizontalAlignment="ALIGN_RIGHT">
+							<g:HorizontalPanel width="30px">
+								<g:Button  ui:field="btn1" text='{constants.sendStr}'></g:Button>
+							</g:HorizontalPanel>
+						</g:cell>
+						<g:HorizontalPanel width='25px'>
+							<g:HTML width='5px'></g:HTML>
+							<g:Image resource='{res.spinner}' ui:field="img0"></g:Image>
+						</g:HorizontalPanel>
+					</g:HorizontalPanel>
+				</g:CaptionPanel>
+			</g:VerticalPanel>
+		</g:VerticalPanel>
+	</g:HTMLPanel>
+</ui:UiBinder> 

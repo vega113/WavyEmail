@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
+  <application>mailwavybeta</application>
+  <version>beta003</version>
+
+  <!-- Configure serving/caching of GWT files -->
+  <static-files>
+    <include path="**" />
+
+    <!-- The following line requires App Engine 1.3.2 SDK -->
+    <include path="**.nocache.*" expiration="0s" />
+
+    <include path="**.cache.*" expiration="365d" />
+    <exclude path="**.gwt.rpc" />
+  </static-files>
+  
+  <!-- Configure java.util.logging -->
+  <system-properties>
+<!--    <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>-->
+    <property name="com.google.gdata.DisableCookieHandler" value="true"/>
+    
+    <!-- forumbotty config properties -->
+    
+     <property name="APP_DOMAIN" value="mailwavybeta"/>
+    <property name="OAUTH_TOKEN" value="AOijR2dn-RKQWKY0_QZFo5T0yJ2c0HF2wIZXfMRG3kRzP8YLVescict0B5bgLwW6t8YFSk_MPcOJykDNL2u_5ef8FIcvtYs58Q39UNIIioycyb-OR4GEUnh20nxlL8IRTWTBpVQKtLieefuvJNAdnkf2B-uhpj-Vqw=="/>
+    <property name="OAUTH_KEY" value="554444543000"/> 
+    <property name="OAUTH_SECRET" value="U/oxraPvYefFgLExxEv69Gka"/> 
+    <property name="SECURITY_TOKEN" value="8528"/>         
+<!--    <property name="APP_DOMAIN" value="digestmaily"/>-->
+<!--    <property name="OAUTH_TOKEN" value="AOijR2fNAdDKYvHBn0VmHlnf4cXKlf4TupWVABOa43cAGrNcSvP54F4u7YoepqEWLpRmbyB8QW2wqKE3dGBj0ZuFFduZIz2aCOhQDAcEAsEh48rZwK4kxawrxugzdefItOHgFJU4sTeBHjuKuvsSw3RKjbrKI1rpJw=="/>-->
+<!--    <property name="OAUTH_KEY" value="517243249112"/> -->
+<!--    <property name="OAUTH_SECRET" value="6ClctJM2AtCcDORAzLIYQcZq"/> -->
+<!--    <property name="SECURITY_TOKEN" value="3628"/>         -->
+<!--    <property name="APP_DOMAIN" value="aggfiwave"/>-->
+<!--    <property name="OAUTH_TOKEN" value="AOijR2cAh7ETatBb37zGZlSBv7sLpxCNe0_kFj2TnonjWALK-ocuV7ohTqLWXzU8JZCssITlnKY-ixpsFQkpympTVagfwgJfkgMGPQj9ym3giIe5Jrr_NYN602mK6nDbu90DVEry-w5Ofn6TizjVLOCr2v8iKfQuHw=="/>-->
+<!--    <property name="OAUTH_KEY" value="174095776520"/> -->
+<!--    <property name="OAUTH_SECRET" value="CSwfxYsrSV/oPxbVP7aEpN9c"/>-->
+<!--    <property name="SECURITY_TOKEN" value="691"/>   -->
+    
+    <property name="DIGEST_WAVE_DOMAIN" value="googlewave.com"/>     
+    <property name="BOTTY_OWNER_WAVE_ID" value="vega113@googlewave.com"/>     
+     
+	<property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
+  </system-properties>
+  <precompilation-enabled>false</precompilation-enabled>
+	<inbound-services>
+  		<service>mail</service>  
+	</inbound-services>
+</appengine-web-app>

@@ -1,0 +1,47 @@
+<project name="Switch between Wave and GWT">
+	<property name="wave_bak" value="wave_bak.zip"/>
+	<property name="gwt_bak" value="gwt_bak.zip"/>
+	<property name="bak_dir" value="./bak"/>
+	<!-- ================================= 
+          target: backup_wave    Important! Make sure that your entry point ends with *Gadget.java !!! And no other class does...          
+         ================================= -->
+	<target name="backup_wave"  description="back up the Wave configuration">
+		<mkdir dir="${bak_dir}"/>
+		<delete file="${bak_dir}/${wave_bak}" failonerror="false">
+		</delete>
+		<zip destfile="${bak_dir}/${wave_bak}">
+			<zipfileset dir="./src" includes="**/*Gadget.java"/>
+			<zipfileset dir="./src" includes="**/inject/*.java"/>
+			<zipfileset dir="./src" includes="**/*gwt.xml"/>
+		</zip>
+	</target>
+	<!-- ================================= 
+          target: restore_wave              
+         ================================= -->
+	<target name="restore_wave"  description="restore wave from back up">
+		<unzip dest="./src" src="${bak_dir}/${wave_bak}" overwrite="true">
+		</unzip>
+	</target>
+	<!-- ================================= 
+		          target: backup_gwt   Important! Make sure that your entry point ends with *Gadget.java !!! And no other class does...           
+		         ================================= -->
+	<target name="backup_gwt"  description="back up the Wave configuration">
+		<mkdir dir="${bak_dir}"/>
+		<delete file="${bak_dir}/${gwt_bak}" failonerror="false">
+		</delete>
+		<zip destfile="${bak_dir}/${gwt_bak}">
+			<zipfileset dir="./src" includes="**/*Gadget.java"/>
+			<zipfileset dir="./src" includes="**/inject/*.java"/>
+			<zipfileset dir="./src" includes="**/*gwt.xml"/>
+		</zip>
+	</target>
+	<!-- ================================= 
+	          target: restore_gwt              
+	         ================================= -->
+	<target name="restore_gwt"  description="restore wave from back up">
+		<unzip dest="./src"  src="${bak_dir}/${gwt_bak}" overwrite="true">
+		</unzip>
+	</target>
+
+</project>
+
