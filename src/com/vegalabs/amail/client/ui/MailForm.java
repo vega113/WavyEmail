@@ -6,6 +6,8 @@ import java.util.Map;
 
 import com.allen_sauer.gwt.log.client.Log;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.ChangeEvent;
+import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.KeyPressEvent;
@@ -17,15 +19,22 @@ import com.google.gwt.json.client.JSONValue;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Timer;
+import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
+import com.google.gwt.user.client.ui.DecoratedPopupPanel;
 import com.google.gwt.user.client.ui.FocusWidget;
+import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HasText;
+import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Image;
+import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.MultiWordSuggestOracle;
 import com.google.gwt.user.client.ui.PushButton;
 import com.google.gwt.user.client.ui.RichTextArea;
 import com.google.gwt.user.client.ui.SimplePanel;
+import com.google.gwt.user.client.ui.SuggestBox;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.TextBoxBase;
 import com.google.gwt.user.client.ui.VerticalPanel;
@@ -51,6 +60,7 @@ public class MailForm extends Composite {
 	
 	
 	@UiField TextBox toBox;
+	@UiField VerticalPanel oracleHolderCntPnl;
 	@UiField TextBox subjectBox;
 	@UiField TextBox fromBox;
 	@UiField RichTextArea contentRichTextArea;
@@ -62,11 +72,18 @@ public class MailForm extends Composite {
 	@UiField VerticalPanel loadingPanel;
 	@UiField VerticalPanel mainMailPanel;
 	
+	SuggestBox suggestCntBox;
+	
+	@UiField
+	Button registerBtn;
+	
+	
 	
 	protected VegaUtils utils;
 	protected GlobalResources resources;
 	protected ConstantsImpl constants;
 	protected MessagesImpl messages;
+	protected IService service;
 	
 	protected Map<String,String> activitiesMap = new HashMap<String,String>();
 	
@@ -81,6 +98,7 @@ public class MailForm extends Composite {
 		this.utils = utils;
 		this.resources = resources;
 		this.constants = constants;
+		this.service = service;
 		
 		img0.setVisible(false);
 		mainMailPanel.setVisible(false);
@@ -90,10 +108,11 @@ public class MailForm extends Composite {
 		RichTextToolbar richTextToolbar = new RichTextToolbar(contentRichTextArea);
 		richTextToolbarPanel.add(richTextToolbar);
 		
+		
 //		utils.putToState("mode","NEW");
 		
 		
-		initState();//XXX remove
+//		initState();//XXX remove
 		
 		// start sendBtn.addClickHandler
 		btn1.addClickHandler(new ClickHandler() {
@@ -230,17 +249,20 @@ public class MailForm extends Composite {
 			}
 		});
 		
+		init();
 		
 		Timer mailPnlTimer = new Timer() {
-			
 			@Override
 			public void run() {
-				init();
+				loadContacts();
+//				if(utils.retrFromState("contacts") == null){
+//					loadContacts();
+//				}
 				loadingPanel.setVisible(false);
 				mainMailPanel.setVisible(true);
 			}
 		};
-		mailPnlTimer.schedule(1500);//TODO ?should send request to server - to get info for the user
+		mailPnlTimer.schedule(1000);//TODO ?should send request to server - to get info for the user
 		
 		//run on state update - after sent/reply
 		utils.addRunOnStateEventUpdate(new Runnable() {
@@ -251,12 +273,67 @@ public class MailForm extends Composite {
 				cancelAction();//restore gadget from state
 			}
 		});
+		
+		
+		registerBtn.addClickHandler(new ClickHandler() {
+			
+			@Override
+			public void onClick(ClickEvent event) {
+//				Window.open("http://" + constants.appDomain() + ".appspot.com/LoginServlet?user=" + utils.retrHostId(), "", "");
+				Window.open("http://localhost:8888/LoginServlet?user=" + utils.retrHostId(), "", "");
+				utils.putToState("contacts",null);
+			}
+		});
 	}
 	
 
+	private void loadContacts() {
+		final String userId = utils.retrUserId();
+		try {
+			Log.info("Loading contacts for: " + userId);
+			service.loadContacts(userId, new AsyncCallback<JSONValue>() {
+				
+				@Override
+				public void onSuccess(JSONValue result) {
+					String contacts = result.isObject().get("contacts").isString().stringValue();
+					utils.putToState("contacts", contacts);
+				}
+				
+				@Override
+				public void onFailure(Throwable caught) {
+					Log.error("loadContacts userId: " + userId , caught);
+					utils.alert(caught.getMessage());
+					img0.setVisible(false);
+				}
+			});
+		} catch (RequestException e) {
+			Log.error("loadContacts userId: " + userId , e);
+		}
+	}
+
+
 	private void init() {
+		//init to suggest box
 		String mode = utils.retrFromState("mode");
 		Log.info("mode is: " + mode);
+		
+		String concatinatedContacts = utils.retrFromState("contacts");
+		MultiWordSuggestOracle oracle = new MultiWordSuggestOracle();
+		if(concatinatedContacts != null){
+			 // Define the oracle that finds suggestions
+		    String[] words = concatinatedContacts.split("#");
+		    for (int i = 0; i < words.length; ++i) {
+		      oracle.add(words[i]);
+		    }
+		}
+		
+		if(oracleHolderCntPnl.getWidgetCount() > 0){
+			oracleHolderCntPnl.clear();
+		}
+		suggestCntBox = new SuggestBox(oracle);
+		suggestCntBox.setWidth(constants.basicItemWidthStr());
+		suggestCntBox.getTextBox().addChangeHandler(suggestCntChangeHandler);
+		oracleHolderCntPnl.add(suggestCntBox);
 		
 		if( "READ".equals(mode)){//email received from some sender
 			readFromStateIntoGadget();
@@ -283,6 +360,27 @@ public class MailForm extends Composite {
 		}
 		
 	}
+	
+	protected ChangeHandler suggestCntChangeHandler = new ChangeHandler() {
+		@Override
+		public void onChange(ChangeEvent event) {
+			Timer t = new Timer() {
+				@Override
+				public void run() {
+					String suggestion = suggestCntBox.getTextBox().getText();
+					if(toBox.getText().contains(suggestion)){
+						suggestCntBox.getTextBox().setText("");
+						return;
+					}
+					if(suggestion != null && suggestion.length() > 0){
+						suggestCntBox.getTextBox().setText("");
+						toBox.setText(suggestion + ", " + toBox.getText());
+					}
+				}
+			};
+			t.schedule(200);
+		}
+	};
 
 
 	private void readFromStateIntoGadget() {
@@ -336,7 +434,21 @@ public class MailForm extends Composite {
 //		hadnlersMap.put(widget.hashCode(), hr);
 	}
 	
+	private void disableField( SuggestBox widget) {
+//		widget.setStyleName(resources.globalCSS().readonly());
+//		HandlerRegistration hr = widget.addKeyPressHandler(disableKeyPressHandler);
+//		hadnlersMap.put(widget.hashCode(), hr);
+	}
+	
 	private void enableField(FocusWidget widget){
+		widget.removeStyleName(resources.globalCSS().readonly());
+		HandlerRegistration hr = hadnlersMap.get(widget.hashCode());
+		if(hr != null){
+			hr.removeHandler();
+			hadnlersMap.put(widget.hashCode(), null);
+		}
+	}
+	private void enableField(SuggestBox widget){
 		widget.removeStyleName(resources.globalCSS().readonly());
 		HandlerRegistration hr = hadnlersMap.get(widget.hashCode());
 		if(hr != null){
@@ -402,6 +514,7 @@ public class MailForm extends Composite {
 		subject = ClientMailUtils.encodeBase64(subject);
 		utils.putToState("subject", subject);
 		utils.putToState("mode", "READ");
+		utils.putToState("contacts", "vega113@gmail.com#Yuri Z<vega113@gmail.com>#Yuri<vega113-googlewave.com@mailwavybeta.appspotmail.com>#vega113-googlewave.com@mailwavybeta.appspotmail.com#");
 	}
 
 
