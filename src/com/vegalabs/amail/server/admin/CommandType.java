@@ -4,7 +4,9 @@ import com.vegalabs.general.server.command.Command;
 
 
 public enum CommandType {
-	SEND_EMAIL(SendEmail.class);
+	SEND_EMAIL(SendEmail.class),
+	IMPORT_CONTACTS(ImportContacts.class),
+	LOAD_CONTACTS(LoadContacts.class);
 
   private Class<? extends Command> clazz = null;
 

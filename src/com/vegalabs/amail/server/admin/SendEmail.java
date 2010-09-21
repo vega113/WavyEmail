@@ -1,5 +1,6 @@
 package com.vegalabs.amail.server.admin;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -22,6 +23,7 @@ import com.google.wave.api.Blip;
 import com.google.wave.api.Wavelet;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import javax.activation.DataHandler;
@@ -128,34 +130,41 @@ public class SendEmail extends Command {
     }
     blip = wavelet.getBlip(blipId);
 	
-  
-    
-    String activityTypeStr = robot.updateOnEmailSent(wavelet,activityType,recipients,subject);
-    
-    
-    Properties props = new Properties();
-    Session session = Session.getDefaultInstance(props, null);
 
     List<String> fromList = new ArrayList<String>();
-	 fromList.add(sender);
-	 List<String> toList = new ArrayList<String>();
-	 
-	 for(String recipient : recipients.split(",")){
-		 toList.add(recipient);
-		 String onlyMail = MailUtils.stripRecipientForEmail(recipient);
-		 String onlyName = MailUtils.stripRecipientForName(recipient);
-		 person.getContacts().put(onlyMail, recipient);
-		 person.getContactsName().put(onlyName, recipient);
-	 }
-	personDao.save(person);
-	 
-    EmailEvent emailEvent = new EmailEvent(activityTypeStr, subject, new Text(msgBody), fromList, toList, sender, sentDate);
-	 String fullWaveId = waveId.split("!")[0] + "#" + waveId.split("!")[1] + "#" + blipId;
-	 emailEvent.getFullWaveIdPerUserMap().put(sender, fullWaveId);
-	 emailEventDao.save(emailEvent);
-	 
-	
+    fromList.add(sender);
+    List<String> toList = new ArrayList<String>();
 
+    for(String recipient : recipients.split(",")){
+    	toList.add(recipient);
+    	String onlyMail = MailUtils.stripRecipientForEmail(recipient);
+    	String onlyName = MailUtils.stripRecipientForName(recipient);
+    	person.getContacts().put(onlyMail, recipient);
+    	person.getContactsName().put(onlyName, recipient);
+    }
+    person.setUpdated(new Date());
+    personDao.save(person);
+    
+    String activityTypeStr = robot.updateOnEmailSent(wavelet,blipId,activityType,recipients,subject);
+    
+    String contacts = robot.retrContacts4User(person);
+    HashMap<String,String> contactsUpdateMap = new HashMap<String, String>();
+    contactsUpdateMap.put("contacts", contacts);
+    robot.updateGadgetState(blip, WaveMailRobot.GADGET_URL, contactsUpdateMap);
+    
+    try {
+		robot.submit(wavelet, robot.getRpcServerUrl());
+	} catch (IOException e) {
+		LOG.log(Level.SEVERE, wavelet.getWaveId().toString(), e);
+	}
+
+    EmailEvent emailEvent = new EmailEvent(activityTypeStr, subject, new Text(msgBody), fromList, toList, sender, sentDate);
+    String fullWaveId = waveId.split("!")[0] + "#" + waveId.split("!")[1] + "#" + blipId;
+    emailEvent.getFullWaveIdPerUserMap().put(sender, fullWaveId);
+    emailEventDao.save(emailEvent);
+
+    Properties props = new Properties();
+    Session session = Session.getDefaultInstance(props, null);
     try {
         Message msg = new MimeMessage(session);
         msg.setFrom(new InternetAddress(sender,senderName));

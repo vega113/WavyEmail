@@ -16,9 +16,12 @@
 	<inherits name="com.google.gwt.i18n.I18N" />
 	<inherits name="com.google.gwt.http.HTTP" />
 	<inherits name="com.google.gwt.json.JSON" />
-	<inherits name="com.google.gwt.gadgets.Gadgets" />
-	<inherits name='org.cobogw.gwt.waveapi.gadget.WaveGadget' />
-	<inherits name='com.vegalabs.features.VegaWaveFeatures' />
+	<inherits name='com.vegalabs.general.VegaGeneral' />
+<!--	<inherits name="com.google.gwt.gadgets.Gadgets" />-->
+<!--	<inherits name='org.cobogw.gwt.waveapi.gadget.WaveGadget' />-->
+<!--	<inherits name='com.vegalabs.features.VegaWaveFeatures' />-->
+<!--	<inherits name='com.google.gwt.visualization.Visualization'/>-->
+<!--	<inherits name="com.allen_sauer.gwt.log.gwt-log-ERROR" /> -->
 
   <!-- Specify the app entry point class.                         -->
   <entry-point class='com.vegalabs.amail.client.WaveMailGadget'/>
@@ -26,4 +29,5 @@
   <!-- Specify the paths for translatable code                    -->
   <source path='client'/>
   <source path='shared'/>
+	<set-property name="user.agent" value="gecko1_8" />
 </module>

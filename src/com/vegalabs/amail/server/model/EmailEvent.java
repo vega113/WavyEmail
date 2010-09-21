@@ -140,7 +140,10 @@ public class EmailEvent {
 	}
 
 	public Map<String, String> getFullWaveIdPerUserMap() {
-		return fullWaveIdPerUserMap != null ? fullWaveIdPerUserMap : new HashMap<String, String>();
+		if(fullWaveIdPerUserMap == null){
+			fullWaveIdPerUserMap = new HashMap<String, String>();
+		}
+		return fullWaveIdPerUserMap; 
 	}
 
 	public void setFullWaveIdPerUserMap(Map<String, String> fullWaveIdPerUserMap) {

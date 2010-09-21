@@ -14,6 +14,12 @@ import com.google.gwt.i18n.client.Constants.DefaultStringValue;
  */
 public interface ConstantsImpl extends Constants {
 
+	String importCnts();
+	String lookupCntsTitle();
+	String addBtnStr();
+	String fromSndrStr();
+	String toRcpntStr();
+	String lookupCntsStr();
 	String forwardPrefixStr();
 	String forwardStr();
 	String cancelStr();

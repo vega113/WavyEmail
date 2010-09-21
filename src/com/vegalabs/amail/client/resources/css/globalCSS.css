@@ -23,6 +23,13 @@
 	color:  DarkSkyBlue ;
 }
 
+.whiteRow {
+	background: white;
+	font-family: fantasy;
+	font-size: 13;
+	color:  DarkSkyBlue ;
+}
+
 .regularRow {
 	background: #A3D1FF;
 }

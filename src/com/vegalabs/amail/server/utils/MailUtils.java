@@ -136,7 +136,7 @@ public class MailUtils {
 				for(String prefix : stripArr){
 					if(dirtySubject.startsWith(prefix)){
 						int prefixLength = prefix.length();
-						dirtySubject = dirtySubject.substring(prefixLength);
+						dirtySubject = dirtySubject.substring(prefixLength).trim();
 						isContinue = true;
 					}
 				}

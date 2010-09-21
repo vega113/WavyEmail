@@ -57,9 +57,11 @@ import com.google.wave.api.impl.DocumentModifyAction.BundledAnnotation;
 import com.vegalabs.amail.server.admin.SendEmail;
 import com.vegalabs.amail.server.dao.EmailEventDao;
 import com.vegalabs.amail.server.dao.EmailThreadDao;
+import com.vegalabs.amail.server.dao.PersonDao;
 import com.vegalabs.amail.server.data.FullWaveAddress;
 import com.vegalabs.amail.server.model.EmailEvent;
 import com.vegalabs.amail.server.model.EmailThread;
+import com.vegalabs.amail.server.model.Person;
 import com.vegalabs.amail.server.utils.MailUtils;
 import com.vegalabs.amail.server.utils.StringUtils;
 import com.vegalabs.general.server.command.Command;
@@ -98,13 +100,15 @@ private static final Logger LOG = Logger.getLogger(WaveMailRobot.class.getName()
   private Cache cache;
   private EmailEventDao emailEventDao;
   private EmailThreadDao emailThreadDao;
+  private PersonDao personDao;
 
   @Inject
-  public WaveMailRobot(Injector injector, Util util, EmailEventDao emailEventDao, EmailThreadDao emailThreadDao) {
+  public WaveMailRobot(Injector injector, Util util, EmailEventDao emailEventDao, EmailThreadDao emailThreadDao, PersonDao personDao) {
     this.injector = injector;
     this.util = util;
     this.emailEventDao = emailEventDao;
     this.emailThreadDao = emailThreadDao;
+    this.personDao = personDao;
 
     OAUTH_TOKEN = System.getProperty("OAUTH_TOKEN");
     OAUTH_KEY = System.getProperty("OAUTH_KEY");
@@ -123,7 +127,9 @@ private static final Logger LOG = Logger.getLogger(WaveMailRobot.class.getName()
 
   }
   
-  private static Map<String,String> fixStylesMap = new HashMap<String, String>(); 
+  private static Map<String,String> fixStylesMap = new HashMap<String, String>();
+
+public static final String GADGET_URL = "http://" + System.getProperty("APP_DOMAIN") + ".appspot.com/wavemail/com.vegalabs.amail.client.WaveMailGadget.gadget.xml"; 
   static{
 	  fixStylesMap.put("background-color", "backgroundColor");
 	  fixStylesMap.put("font-family", "fontFamily");
@@ -157,6 +163,8 @@ private static final Logger LOG = Logger.getLogger(WaveMailRobot.class.getName()
     }
     if (this.domain.equals(PREVIEW_DOMAIN)) {
       setupOAuth(OAUTH_KEY, OAUTH_SECRET, PREVIEW_RPC_URL);
+    }else{
+    	LOG.severe("Are you crazy? domain should be googlewave.com!!!");
     }
 
     setAllowUnsignedRequests(true);
@@ -179,13 +187,15 @@ private static final Logger LOG = Logger.getLogger(WaveMailRobot.class.getName()
 	  String proxyFor = event.getBundle().getProxyingFor();
 	  LOG.log(Level.INFO, "onWaveletSelfAdded proxyFor: " + proxyFor + ", wave title: " + event.getWavelet().getTitle() + ", waveId: " + event.getWavelet().getWaveId().toString());
 
-	  Wavelet wavelet = event.getWavelet();
+	 Wavelet wavelet = event.getWavelet();
 	  wavelet.setTitle("Create email [" + System.getProperty("APP_DOMAIN") + "]");
-	  try {
-		submit(wavelet, event.getBundle().getRpcServerUrl());
-	} catch (IOException e) {
-		LOG.log(Level.SEVERE, wavelet.getWaveId().toString(), e);
-	}
+	  LOG.info("Modified by: " + event.getModifiedBy());
+	  String contacts = retrContacts4User(MailUtils.waveId2mailId(event.getModifiedBy()));
+	    HashMap<String,String> contactsUpdateMap = new HashMap<String, String>();
+	    contactsUpdateMap.put("contacts", contacts);
+	    updateGadgetState(event.getBlip(), WaveMailRobot.GADGET_URL, contactsUpdateMap);
+	  
+	
   }
 
 		
@@ -221,6 +231,7 @@ private static final Logger LOG = Logger.getLogger(WaveMailRobot.class.getName()
 			 //check if this recipient already got the email
 			 EmailEvent emailEvent = emailEventDao.getEmailEventByHash(subject.hashCode(),msgBody.hashCode(),sentDate );
 			 FullWaveAddress newBlipFullAddress = null;
+			 boolean isMailReceived = false;
 			 if(emailEvent == null){ 
 				 //first time 
 				 newBlipFullAddress = sendNewEmailToRecipient(msgBody, subject, fromFullEmail,toWaveMailAddress, toWaveAddress, allRecipientsSB.toString(),attachmentsList,threadBlipAddress);
@@ -234,6 +245,7 @@ private static final Logger LOG = Logger.getLogger(WaveMailRobot.class.getName()
 				 EmailEvent newEmailEvent = new EmailEvent("RECEIVE", subject, new Text(msgBody), fromList , toList, fromFullEmail, sentDate);
 				 newEmailEvent.getFullWaveIdPerUserMap().put(toWaveMailAddress, fullWaveId);
 				 emailEventDao.save(newEmailEvent);
+				 isMailReceived = true;
 				 
 			 }else if(emailEvent != null && !emailEvent.getTo().contains(toWaveMailAddress)){
 				 //email is not new - but this recipient didn't get it
@@ -241,12 +253,17 @@ private static final Logger LOG = Logger.getLogger(WaveMailRobot.class.getName()
 				 String fullWaveId = newBlipFullAddress.toFullWaveId();
 				 emailEvent.getFullWaveIdPerUserMap().put(toWaveAddress, fullWaveId);
 				 emailEventDao.save(emailEvent);
+				 isMailReceived = true;
 				 
 			 }else if(emailEvent != null && emailEvent.getTo().contains(toWaveAddress)){
 				 continue;
 			 }
-			 if(thread == null && threadBlipAddress == null){
-				 thread = new EmailThread(cleanSubject.hashCode(), toWaveMailAddress, newBlipFullAddress);
+			 if( isMailReceived == true ){
+				 if( thread == null){
+					 thread = new EmailThread(cleanSubject.hashCode(), toWaveMailAddress, newBlipFullAddress);
+				 }else{
+					 thread.setBlipsCount(thread.getBlipsCount() + 1);
+				 }
 				 emailThreadDao.save(thread);
 			 }
 		 }
@@ -359,13 +376,13 @@ private StringBuilder flattenToAscii(String subject) {
  
  
 	private void appendMailGadget(Blip blip,String blipId, String msgBody, String subject, String from, String to, String toAll) {
-		String gadgetUrl = "http://" + System.getProperty("APP_DOMAIN") + ".appspot.com/wavemail/com.vegalabs.amail.client.WaveMailGadget.gadget.xml";
 		LOG.info("appendMailGadget:  blipId: " + blip.getBlipId() + ", msgBody: " + msgBody);
 		//check if blip already contains the add gadget. 
-		BlipContentRefs gadgetRef = blip.first(ElementType.GADGET,Gadget.restrictByUrl(gadgetUrl));
-		if(gadgetRef == null || Gadget.class.cast(gadgetRef.value()) == null){
-			Gadget gadget = null;
-			gadget = new Gadget(gadgetUrl);
+		Gadget gadget = extractGadgetFromBlip(GADGET_URL,blip);
+		if(gadget == null){
+			String contacts = retrContacts4User(to);
+			
+			gadget = new Gadget(GADGET_URL);
 			blip.at(blip.getContent().length()).insert(gadget);
 			
 			Map<String,String> out = new HashMap<String, String>();
@@ -375,11 +392,57 @@ private StringBuilder flattenToAscii(String subject) {
 		    out.put("from", from);
 		    out.put("toAll", toAll);
 		    out.put("to", to);
+		    out.put("contacts", contacts);
 		    out.put("mode", "READ");
-		    
-		    blip.first(ElementType.GADGET,Gadget.restrictByUrl(gadget.getUrl())).updateElement(out);
+		    updateGadgetState(blip, GADGET_URL, out);
 		}
 		
+	}
+
+
+
+	public void updateGadgetState(Blip blip, String gadgetUrl,Map<String, String> out) {
+		Gadget gadget = extractGadgetFromBlip(gadgetUrl,blip);
+		gadget.getProperties().putAll(out);
+		blip.first(ElementType.GADGET,Gadget.restrictByUrl(gadget.getUrl())).updateElement(gadget.getProperties());
+	}
+	
+	private Gadget extractGadgetFromBlip(String gadgetUrl, Blip blip){
+		BlipContentRefs gadgetRef = blip.first(ElementType.GADGET,Gadget.restrictByUrl(gadgetUrl));
+		if(gadgetRef == null || Gadget.class.cast(gadgetRef.value()) == null){
+			return null;
+		}else{
+			return Gadget.class.cast(gadgetRef.value());
+		}
+	}
+
+
+
+	public String retrContacts4User(String to) {
+		//load contacts
+		Person person = personDao.getPerson(MailUtils.stripRecipientForEmail(to));
+		StringBuilder contactsSb = concatinateContacts(person);
+		return contactsSb.toString();
+	}
+
+
+
+	private StringBuilder concatinateContacts(Person person) {
+		StringBuilder contactsSb = new StringBuilder();
+		for(String key : person.getContacts().keySet()){
+			String value = person.getContacts().get(key);
+			if(!value.equals(key)){
+				contactsSb.append(value + "#" + key + "#");
+			}else{
+				contactsSb.append(value + "#");
+			}
+		}
+		return contactsSb;
+	}
+	
+	public String retrContacts4User(Person person) {
+		StringBuilder contactsSb = concatinateContacts(person);
+		return contactsSb.toString();
 	}
 		
 
@@ -605,7 +668,7 @@ public void handleGadgetRequest(GadgetStateChangedEvent e, JSONObject json,
 							  if(!split[1].equals("none")){ //if none - no reply needed
 								  out.put(responseKey, json.toString());
 							  }
-							  blip.first(ElementType.GADGET,Gadget.restrictByUrl(gadget.getUrl())).updateElement(out);
+							  updateGadgetState(blip, GADGET_URL, out);
 						  }
 					  }
 				  }
@@ -669,7 +732,7 @@ protected String[] createGadgetUrlsArr() {
 		
 	}
 	
-	public String updateOnEmailSent(Wavelet wavelet, int activityType, String recipients, String subject) {
+	public String updateOnEmailSent(Wavelet wavelet,String blipId, int activityType, String recipients, String subject) {
 		
 		subject = flattenToAscii(subject).toString();
 		String appdomain = System.getProperty("APP_DOMAIN");
@@ -737,13 +800,6 @@ protected String[] createGadgetUrlsArr() {
 			wavelet.setTitle( subject + " [" + detailedFormat.format(today) + " ] ");
 		}
 		
-		
-		try {
-			submit(wavelet, getRpcServerUrl());
-		} catch (IOException e) {
-			LOG.log(Level.SEVERE, wavelet.getWaveId().toString(), e);
-		}
-		
 		 return activityTypeStr;
 	}
 	
@@ -786,8 +842,5 @@ protected String[] createGadgetUrlsArr() {
 		  }
 		 return wavelet;
 	 }
-
-	
-
 	
 }

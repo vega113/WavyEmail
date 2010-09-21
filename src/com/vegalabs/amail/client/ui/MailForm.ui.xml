@@ -6,7 +6,8 @@
 	<ui:with field='constants'
 		type='com.vegalabs.amail.client.constants.ConstantsImpl' />
 	<g:HTMLPanel>
-		<g:VerticalPanel>
+		<g:DecoratorPanel>
+		<g:VerticalPanel stylePrimaryName='{res.globalCSS.highlightRow}'>
 			<g:VerticalPanel ui:field="loadingPanel">
 				<g:CaptionPanel width='{constants.basicWidthStr}'>
 					<g:HorizontalPanel>
@@ -21,17 +22,29 @@
 			</g:VerticalPanel>
 			<g:VerticalPanel ui:field="mainMailPanel">
 				<g:CaptionPanel width='{constants.basicWidthStr}'>
-					<g:HorizontalPanel>
-						<g:Label text='To' width='100px'></g:Label>
-						<g:TextBox width='{constants.basicItemWidthStr}'
-							ui:field="toBox" text='vega113@gmail.com'></g:TextBox>
-					</g:HorizontalPanel>
+					<g:VerticalPanel>
+						<g:HorizontalPanel>
+							<g:HorizontalPanel width='100px'>
+								<g:Label text='{constants.toRcpntStr}'></g:Label>
+								<g:HTML width="20px"></g:HTML>
+							</g:HorizontalPanel>
+							<g:TextBox ui:field="toBox" width='{constants.basicItemWidthStr}'> </g:TextBox>
+						</g:HorizontalPanel>
+						<g:HorizontalPanel>
+							<g:HorizontalPanel width='100px'>
+								<g:Image resource='{res.contacts}' title='{constants.lookupCntsTitle}' />
+								<g:HTML width="5px"></g:HTML>
+								<g:Label text='{constants.lookupCntsStr}' width='60px'></g:Label>
+							</g:HorizontalPanel>
+							<g:VerticalPanel ui:field="oracleHolderCntPnl" width='{constants.basicItemWidthStr}'></g:VerticalPanel>
+						</g:HorizontalPanel>
+					</g:VerticalPanel>
 				</g:CaptionPanel>
 				<g:CaptionPanel>
 					<g:HorizontalPanel>
-						<g:Label text='From' width='100px'></g:Label>
+						<g:Label text='{constants.fromSndrStr}' width='100px'></g:Label>
 						<g:TextBox width='{constants.basicItemWidthStr}'
-							ui:field="fromBox" text='vega113@gmail.com'></g:TextBox>
+							ui:field="fromBox"></g:TextBox>
 					</g:HorizontalPanel>
 				</g:CaptionPanel>
 				<g:CaptionPanel width='{constants.basicWidthStr}'>
@@ -49,7 +62,7 @@
 							</g:CaptionPanel>
 							<g:CaptionPanel width='{constants.smallerWidthStr}'>
 								<g:RichTextArea width='{constants.smallerWidthStr}'
-									height='300px' ui:field="contentRichTextArea" text='Sample content'></g:RichTextArea>
+									height='320px' ui:field="contentRichTextArea" text='Sample content' stylePrimaryName='{res.globalCSS.whiteRow}'></g:RichTextArea>
 							</g:CaptionPanel>
 						</g:VerticalPanel>
 					</g:HorizontalPanel>
@@ -57,18 +70,21 @@
 				<g:CaptionPanel width='{constants.basicWidthStr}'>
 					<g:HorizontalPanel>
 						<g:HorizontalPanel width='50px'>
-<!--							<g:PushButton text='import contacts'></g:PushButton>-->
+							<!-- <g:PushButton text='import contacts'></g:PushButton> -->
+							<g:cell horizontalAlignment="ALIGN_CENTER">
+									<g:Button text='{constants.importCnts}' ui:field="registerBtn"></g:Button>
+								</g:cell>
 						</g:HorizontalPanel>
 						<g:HTML width='445px'></g:HTML>
 						<g:HorizontalPanel width='30px'>
 							<g:Button ui:field="btn3" text='{constants.cancelStr}'></g:Button>
-						</g:HorizontalPanel >
+						</g:HorizontalPanel>
 						<g:HorizontalPanel width='30px'>
 							<g:Button ui:field="btn2" text='{constants.cancelStr}'></g:Button>
-						</g:HorizontalPanel >
+						</g:HorizontalPanel>
 						<g:cell horizontalAlignment="ALIGN_RIGHT">
 							<g:HorizontalPanel width="30px">
-								<g:Button  ui:field="btn1" text='{constants.sendStr}'></g:Button>
+								<g:Button ui:field="btn1" text='{constants.sendStr}'></g:Button>
 							</g:HorizontalPanel>
 						</g:cell>
 						<g:HorizontalPanel width='25px'>
@@ -79,5 +95,6 @@
 				</g:CaptionPanel>
 			</g:VerticalPanel>
 		</g:VerticalPanel>
+		</g:DecoratorPanel>
 	</g:HTMLPanel>
 </ui:UiBinder> 

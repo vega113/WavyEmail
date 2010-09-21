@@ -18,4 +18,5 @@ public interface GlobalCSS extends CssResource {
 	public String valueWidget();
 	public String pretty();
 	public String alignRight();
+	public String whiteRow();
 }

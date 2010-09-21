@@ -21,4 +21,6 @@ public interface GlobalResources extends ClientBundle {
 	@Source("images/spinner.1.gif")
 	ImageResource spinner();
 
+	@Source("images/contactsgroup.png")
+	ImageResource contacts();
 }

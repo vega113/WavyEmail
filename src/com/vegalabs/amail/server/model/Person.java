@@ -1,11 +1,10 @@
 package com.vegalabs.amail.server.model;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Map;
-
 import javax.jdo.annotations.IdGeneratorStrategy;
 import javax.jdo.annotations.IdentityType;
 import javax.jdo.annotations.PersistenceCapable;
@@ -123,7 +122,10 @@ public class Person {
 		this.iconUrl = iconUrl;
 	}
 	public Map<String, String> getProperties() {
-		return properties != null ? properties : new HashMap<String,String>();
+		if(properties == null){
+			properties = new HashMap<String,String>();
+		}
+		return properties;
 	}
 	public void setProperties(Map<String, String> properties) {
 		this.properties = properties;
@@ -141,14 +143,20 @@ public class Person {
 		this.isActive = isActive;
 	}
 	public Map<String, String> getContactsName() {
-		return contactsName != null ? contactsName : new HashMap<String,String>();
+		if(contactsName == null){
+			contactsName = new HashMap<String,String>();
+		}
+		return contactsName;
 	}
 	public void setContactsName(Map<String, String> contactsName) {
 		this.contactsName = contactsName;
 	}
 	
 	public Map<String, String> getContacts() {
-		return contacts != null ? contacts : new HashMap<String,String>();
+		if(contacts == null){
+			contacts = new HashMap<String,String>();
+		}
+		return contacts;
 	}
 	public void setContacts(Map<String, String> contacts) {
 		this.contacts = contacts;
@@ -168,6 +176,59 @@ public class Person {
 
 	public void setIsActive(Boolean isActive) {
 		this.isActive = isActive;
+	}
+
+	@Override
+	public String toString() {
+		final int maxLen = 10;
+		StringBuilder builder = new StringBuilder();
+		builder.append("Person [created=");
+		builder.append(created);
+		builder.append(", email=");
+		builder.append(email);
+		builder.append(", wavemail=");
+		builder.append(wavemail);
+		builder.append(", waveAddress=");
+		builder.append(waveAddress);
+		builder.append(", name=");
+		builder.append(name);
+		builder.append(", gmailPass=");
+		builder.append(gmailPass);
+		builder.append(", gmailToken=");
+		builder.append(gmailToken);
+		builder.append(", contactsToken=");
+		builder.append(contactsToken);
+		builder.append(", iconUrl=");
+		builder.append(iconUrl);
+		builder.append(", properties=");
+		builder.append(properties != null ? toString(properties.entrySet(),
+				maxLen) : null);
+		builder.append(", updated=");
+		builder.append(updated);
+		builder.append(", isActive=");
+		builder.append(isActive);
+		builder.append(", contacts=");
+		builder.append(contacts != null ? toString(contacts.entrySet(), maxLen)
+				: null);
+		builder.append(", contactsName=");
+		builder.append(contactsName != null ? toString(contactsName.entrySet(),
+				maxLen) : null);
+		builder.append("]");
+		return builder.toString();
+	}
+
+	private String toString(Collection<?> collection, int maxLen) {
+		StringBuilder builder = new StringBuilder();
+		builder.append("[");
+		int i = 0;
+		for (Iterator<?> iterator = collection.iterator(); iterator.hasNext()
+				&& i < maxLen; i++) {
+			if (i > 0)
+				builder.append(", ");
+			builder.append(iterator.next());
+		}
+		builder.append("]");
+		return builder.toString();
 	}
 	
 }

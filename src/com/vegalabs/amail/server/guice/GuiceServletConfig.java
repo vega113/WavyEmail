@@ -4,7 +4,6 @@ import java.util.logging.Logger;
 
 import javax.jdo.JDOHelper;
 import javax.jdo.PersistenceManagerFactory;
-
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -24,6 +23,8 @@ import com.vegalabs.amail.server.dao.EmailThreadDao;
 import com.vegalabs.amail.server.dao.EmailThreadDaoImpl;
 import com.vegalabs.amail.server.dao.PersonDao;
 import com.vegalabs.amail.server.dao.PersonDaoImpl;
+import com.vegalabs.amail.server.dao.TokenDao;
+import com.vegalabs.amail.server.dao.TokenDaoImpl;
 
 public class GuiceServletConfig extends GuiceServletContextListener {
   private static final Logger LOG = Logger.getLogger(GuiceServletConfig.class.getName());
@@ -36,6 +37,9 @@ public class GuiceServletConfig extends GuiceServletContextListener {
         serveRegex("\\/_wave/.*").with(WaveMailRobot.class);
         serve("/admin/jsonrpc").with(JsonRpcProcessor.class);
         serveRegex("\\/_ah/mail/.*").with(MailHandlerServlet.class) ;
+        serve("/LoginServlet").with(com.vegalabs.amail.server.authSub.LoginServlet.class) ; 
+  	  serve("/HandleTokenServlet").with(com.vegalabs.amail.server.authSub.HandleTokenServlet.class); 
+  	  serve("/SuccessMessageServlet").with(com.vegalabs.amail.server.authSub.SuccessMessageServlet.class); 
         
         serve("/_wave/verify_token").with(RegisterRobotServlet.class);
         
@@ -85,7 +89,7 @@ public class GuiceServletConfig extends GuiceServletContextListener {
         bind(EmailEventDao.class).to(EmailEventDaoImpl.class);
         bind(CommandFetcher.class).to(CommandFetcherImpl.class);
         bind(EmailThreadDao.class).to(EmailThreadDaoImpl.class);
-        
+        bind(TokenDao.class).to(TokenDaoImpl.class);
 //        bind(TrackerEventDao.class).to(TrackerEventDaoImpl.class);
 //        bind(AdEventDao.class).to(AdEventDaoImpl.class);
       }

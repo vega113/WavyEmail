@@ -71,6 +71,23 @@ public class ServiceImpl implements IService {
 		requestService.makeRequest(url,asyncCallback,params);
 		
 	}
+	
+	
+	@Override
+	public void loadContacts(String userId, AsyncCallback<JSONValue> asyncCallback) throws RequestException {
+		com.google.gwt.json.client.JSONObject paramsJson = new JSONObject();
+		com.google.gwt.json.client.JSONObject postDataJson = new JSONObject();
+		
+		
+		paramsJson.put("userId", new JSONString(userId));
+		
+		postDataJson.put("params", paramsJson);
+		postDataJson.put("method", new JSONString("LOAD_CONTACTS"));
+		
+		JavaScriptObject params = postDataJson.getJavaScriptObject();
+		requestService.makeRequest(url,asyncCallback,params);
+		
+	}
 
 	
 }
