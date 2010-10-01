@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<extension name="Dev-Heaven - CIT" thumbnailUrl="http://lh6.ggpht.com/_tsWs83xehHE/TEb7EPvfCZI/AAAAAAAAFS0/vhJuzfd5iUQ/1279552179_google_wave.png" description="Install to add automatic search for the Dev-Heaven - Community Issue Tracker to your search folder.">
-	<author name="Dev-Heaven" />
-	<savedSearchHook name="Dev-Heaven search"  query="group:dev-heaven@googlegroups.com tag:dh-cit" color="#00FF00" />
-</extension> 

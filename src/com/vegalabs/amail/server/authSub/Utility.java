@@ -31,7 +31,7 @@ public class Utility {
 
   public static final String LOGIN_COOKIE_NAME = "AuthSubSampleCookie";
 
-  private static PrivateKey privateKey;
+  private static PrivateKey privateKey = null;
 
   // Make class uninstantiable
   private Utility() {

@@ -19,6 +19,7 @@ package com.vegalabs.amail.server.authSub;
 import com.google.gdata.client.http.AuthSubUtil;
 import com.google.inject.Singleton;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.security.SecureRandom;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -64,15 +65,12 @@ public class LoginServlet extends HttpServlet {
 	      
 	    String user = req.getParameter("user");
 	    if(user != null)
-	    	continueUrl.append("?user=" + user);
+	    	continueUrl.append("?user=" + URLEncoder.encode(user, "UTF-8"));
 
 	      // Check whether to use https for authentication
 	      boolean secure = (Utility.getPrivateKey() != null);
 	      String authSubLogin;
-	      authSubLogin = AuthSubUtil.getRequestUrl(continueUrl.toString(),
-	              financeFeedRootUrl,
-	              secure,
-	              true /*session*/);
+	      authSubLogin = AuthSubUtil.getRequestUrl(continueUrl.toString(),financeFeedRootUrl, secure,  true /*session*/);
 
 	      resp.sendRedirect(authSubLogin);
 	    } else {

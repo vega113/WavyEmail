@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
   <application>mailwavybeta</application>
-  <version>beta004</version>
+  <version>beta008</version>
 
   <!-- Configure serving/caching of GWT files -->
   <static-files>
@@ -39,6 +39,10 @@
     
     <property name="DIGEST_WAVE_DOMAIN" value="googlewave.com"/>     
     <property name="BOTTY_OWNER_WAVE_ID" value="vega113@googlewave.com"/>     
+    <property name="ROBOT_ICON_URL" value="http://lh5.ggpht.com/_tsWs83xehHE/TJZ2z9fTEkI/AAAAAAAAFgQ/bl6wbJDvNgk/mailwavy_icon.png"/>
+     <property name="PROFILE_URL" value="https://wave.google.com/wave/waveref/googlewave.com/w+rZRxDbZkBhv/~/conv+root/b+rZRxDbZkBhw"/>
+    
+    
      
 	<property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
   </system-properties>

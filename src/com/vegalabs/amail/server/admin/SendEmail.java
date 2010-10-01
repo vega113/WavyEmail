@@ -7,8 +7,11 @@ import java.util.logging.Logger;
 import org.json.JSONException;
 import com.vegalabs.amail.server.WaveMailRobot;
 import com.vegalabs.amail.server.dao.EmailEventDao;
+import com.vegalabs.amail.server.dao.EmailThreadDao;
 import com.vegalabs.amail.server.dao.PersonDao;
+import com.vegalabs.amail.server.data.FullWaveAddress;
 import com.vegalabs.amail.server.model.EmailEvent;
+import com.vegalabs.amail.server.model.EmailThread;
 import com.vegalabs.amail.server.model.Person;
 import com.vegalabs.amail.server.utils.Base64Coder;
 import com.vegalabs.amail.server.utils.MailUtils;
@@ -46,13 +49,15 @@ public class SendEmail extends Command {
   private WaveMailRobot robot;
   private EmailEventDao emailEventDao;
   private PersonDao personDao;
+  private EmailThreadDao emailThreadDao;
 
   @Inject
-  public SendEmail(Util util, WaveMailRobot robot, EmailEventDao emailEventDao, PersonDao personDao) {
+  public SendEmail(Util util, WaveMailRobot robot, EmailEventDao emailEventDao, PersonDao personDao,EmailThreadDao emailThreadDao) {
     this.util = util;
     this.robot = robot;
     this.emailEventDao = emailEventDao;
     this.personDao = personDao;
+    this.emailThreadDao = emailThreadDao;
   }
 
   @Override
@@ -62,25 +67,25 @@ public class SendEmail extends Command {
     if (util.isNullOrEmpty(recipients)) {
       throw new IllegalArgumentException("Missing required param: recipients");
     }
+    recipients = robot.decode(recipients);
     String subject = this.getParam("subject");
     if (util.isNullOrEmpty(subject)) {
-      throw new IllegalArgumentException("Missing required param: subject");
+    	subject = "";
     }
-    subject = Base64Coder.decodeString(subject);
-    subject = UnicodeString.deconvert(subject);
+    subject = robot.decode(subject);
     
     String msgBody = this.getParam("msgBody");
     if (util.isNullOrEmpty(msgBody)) {
-      throw new IllegalArgumentException("Missing required param: msgBody");
+    	msgBody = "";
     }
    
-    msgBody = Base64Coder.decodeString(msgBody);
-    msgBody = UnicodeString.deconvert(msgBody);
+    msgBody = robot.decode(msgBody);
     
     String sender = this.getParam("sender");
     if (util.isNullOrEmpty(sender)) {
       throw new IllegalArgumentException("Missing required param: sender");
     }
+    sender = robot.decode(sender);
     
     String waveId = this.getParam("waveId");
     if (util.isNullOrEmpty(sender)) {
@@ -96,6 +101,7 @@ public class SendEmail extends Command {
     }
     LOG.info("blipId: " + blipId);
     String senderName = this.getParam("senderName");
+    senderName = robot.decode(senderName);
     
     String iconUrl = this.getParam("iconUrl");//XXX save it
     if (util.isNullOrEmpty(iconUrl)) {
@@ -139,6 +145,10 @@ public class SendEmail extends Command {
     	toList.add(recipient);
     	String onlyMail = MailUtils.stripRecipientForEmail(recipient);
     	String onlyName = MailUtils.stripRecipientForName(recipient);
+    	if(onlyName != null){
+    		//let's check if if have this profile
+    		robot.updateCreateProfile(onlyMail,onlyName);
+    	}
     	person.getContacts().put(onlyMail, recipient);
     	person.getContactsName().put(onlyName, recipient);
     }
@@ -147,21 +157,37 @@ public class SendEmail extends Command {
     
     String activityTypeStr = robot.updateOnEmailSent(wavelet,blipId,activityType,recipients,subject);
     
-    String contacts = robot.retrContacts4User(person);
-    HashMap<String,String> contactsUpdateMap = new HashMap<String, String>();
-    contactsUpdateMap.put("contacts", contacts);
-    robot.updateGadgetState(blip, WaveMailRobot.GADGET_URL, contactsUpdateMap);
+//    String contacts = robot.retrContacts4User(person);
+//    HashMap<String,String> contactsUpdateMap = new HashMap<String, String>();
+//    contactsUpdateMap.put("contacts", contacts);
+//    robot.updateGadgetState(blip, WaveMailRobot.GADGET_URL, contactsUpdateMap);
+    //XXX - turn on later
     
     try {
 		robot.submit(wavelet, robot.getRpcServerUrl());
 	} catch (IOException e) {
 		LOG.log(Level.SEVERE, wavelet.getWaveId().toString(), e);
+		// in most cases it will be submitted later
 	}
 
     EmailEvent emailEvent = new EmailEvent(activityTypeStr, subject, new Text(msgBody), fromList, toList, sender, sentDate);
     String fullWaveId = waveId.split("!")[0] + "#" + waveId.split("!")[1] + "#" + blipId;
     emailEvent.getFullWaveIdPerUserMap().put(sender, fullWaveId);
     emailEventDao.save(emailEvent);
+    
+    //handle mail thread - create new if needed
+    String cleanSubject = MailUtils.cleanSubject(subject);
+	//need to check if exists thread for this subject given recipient
+	 EmailThread thread = emailThreadDao.getEmailThread4Wavemail(cleanSubject.hashCode(), sender);
+	 if( thread == null){
+		 thread = new EmailThread(cleanSubject.hashCode(), sender, new FullWaveAddress(wavelet.getWaveId().getDomain(), wavelet.getWaveId().getId(), blipId));
+	 }else{
+		 thread.setDomain(wavelet.getWaveId().getDomain());
+		 thread.setWaveId(wavelet.getWaveId().getId());
+		 thread.setBlipId(blipId);
+		 thread.setBlipsCount(thread.getBlipsCount() + 1);
+	 }
+	 emailThreadDao.save(thread);
 
     Properties props = new Properties();
     Session session = Session.getDefaultInstance(props, null);
@@ -170,8 +196,10 @@ public class SendEmail extends Command {
         msg.setFrom(new InternetAddress(sender,senderName));
         String[] splitRec = recipients.split(",");
         for(String recipient : splitRec){
-        	 msg.addRecipient(Message.RecipientType.TO,
-                     new InternetAddress(recipient));
+        	if(recipient.length() > 4 && recipient.contains("@")){
+        		 msg.addRecipient(Message.RecipientType.TO,
+                         new InternetAddress(recipient));
+        	}
         }
         msg.setSubject(subject);
         
@@ -266,5 +294,6 @@ public class SendEmail extends Command {
     json.put("success", "true");
     return json;
   }
+
 
 }

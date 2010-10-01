@@ -10,6 +10,8 @@ import com.vegalabs.general.server.command.Command;
 import com.vegalabs.general.server.rpc.JsonRpcRequest;
 
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -35,6 +37,7 @@ public class SuccessMessageServlet extends HttpServlet {
 
 		// Retrieve the authentication cookie to identify user
 		String principal = req.getParameter("user");
+		principal = URLDecoder.decode(principal, "UTF-8");
 		LOG.info("principal: " + principal);
 		// Check that the user has an AuthSub token
 		JSONObject postDataJson = new JSONObject();

@@ -1,25 +1,26 @@
 package com.vegalabs.amail.server.dao;
 
+
 import java.util.List;
 import java.util.logging.Logger;
 import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
 import javax.jdo.Query;
 import com.google.inject.Inject;
-import com.vegalabs.amail.server.model.EmailThread;
+import com.vegalabs.amail.server.model.SeriallizableParticipantProfile;
 
-public class EmailThreadDaoImpl implements EmailThreadDao{
-	private final Logger LOG = Logger.getLogger(EmailThreadDaoImpl.class.getName());
+public class SppDaoImpl implements SeriallizableParticipantProfileDao{
+	private final Logger LOG = Logger.getLogger(SppDaoImpl.class.getName());
 
 	private PersistenceManagerFactory pmf = null;
 
 	@Inject
-	public EmailThreadDaoImpl(PersistenceManagerFactory pmf) {
+	public SppDaoImpl(PersistenceManagerFactory pmf) {
 		this.pmf = pmf;
 	}
-	
+
 	@Override
-	public EmailThread save(EmailThread entry) {
+	public SeriallizableParticipantProfile save(SeriallizableParticipantProfile entry) {
 		PersistenceManager pm = pmf.getPersistenceManager();
 		try {
 			entry = pm.makePersistent(entry);
@@ -35,17 +36,16 @@ public class EmailThreadDaoImpl implements EmailThreadDao{
 	}
 	
 	@Override
-	public EmailThread getEmailThread4Wavemail(Integer threadSubjectHash, String wavemail) {
+	public SeriallizableParticipantProfile getSeriallizableParticipantProfile(String email) {
 		PersistenceManager pm = pmf.getPersistenceManager();
-		EmailThread entry =null;
-		LOG.info("getEmailThread4Wavemail threadSubjectHash: " + threadSubjectHash + ", wavemail: " + wavemail);
+		SeriallizableParticipantProfile entry =null;
 		try {
-			Query query = pm.newQuery(EmailThread.class);
+			Query query = pm.newQuery(SeriallizableParticipantProfile.class);
 			//	      query.declareImports("import java.util.Date");
-			query.declareParameters("String wavemail_, Integer threadSubjectHash_");
-			String filters = "wavemail == wavemail_ && threadSubjectHash == threadSubjectHash_";      
+			query.declareParameters("String email_");
+			String filters = "email == email_";      
 			query.setFilter(filters);
-			List<EmailThread> entries = (List<EmailThread>) query.execute(wavemail,threadSubjectHash);
+			List<SeriallizableParticipantProfile> entries = (List<SeriallizableParticipantProfile>) query.execute(email);
 			if(entries.size() > 0){
 				entry = entries.get(0);
 				entry = pm.detachCopy(entry);

@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <extension name="MailWavy beta"
 	thumbnailUrl="http://lh5.ggpht.com/_tsWs83xehHE/TJZ2z9fTEkI/AAAAAAAAFgQ/bl6wbJDvNgk/mailwavy_icon.png"
-	description="Send emails from Wave in HTML format, reply and recieve replies back into Wave.">
+	description="Send emails from Wave in HTML format, reply and recieve replies back into Wave." 
+	version="005">
 	<author name="Yuri Zelikov" />
-	<menuHook location="toolbar" text="Add MailWavy beta"
+	<menuHook location="toolbar" text="Add MailWavy beta gadget"
 		iconUrl="http://lh5.ggpht.com/_tsWs83xehHE/TJZ2z9fTEkI/AAAAAAAAFgQ/bl6wbJDvNgk/mailwavy_icon.png">
 		<addParticipants> 
 			<participant id="mailwavybeta@appspot.com" /> 

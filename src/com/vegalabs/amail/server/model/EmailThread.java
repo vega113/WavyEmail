@@ -1,5 +1,7 @@
 package com.vegalabs.amail.server.model;
 
+import java.util.Date;
+
 import javax.jdo.annotations.IdGeneratorStrategy;
 import javax.jdo.annotations.IdentityType;
 import javax.jdo.annotations.PersistenceCapable;
@@ -30,6 +32,8 @@ public class EmailThread {
 		this.waveId = fullWaveAddress.getId();
 		this.domain = fullWaveAddress.getDomain();
 		this.blipId = fullWaveAddress.getBlipId();
+		this.updated = new Date();
+		this.created = new Date();
 		blipsCount = 0;
 	}
 	
@@ -51,6 +55,13 @@ public class EmailThread {
 	@Persistent
 	@Expose
 	Integer blipsCount;
+	@Persistent
+	@Expose
+	Date created;
+	@Persistent
+	@Expose
+	Date updated;
+	
 	public Integer getThreadSubjectHash() {
 		return threadSubjectHash;
 	}
@@ -81,12 +92,25 @@ public class EmailThread {
 	}
 	public void setBlipsCount(Integer blipsCount) {
 		this.blipsCount = blipsCount;
+		this.updated = new Date();
 	}
 	public String getWavemail() {
 		return wavemail;
 	}
 	public void setWavemail(String wavemail) {
 		this.wavemail = wavemail;
+	}
+	public Date getCreated() {
+		return created;
+	}
+	public void setCreated(Date created) {
+		this.created = created;
+	}
+	public Date getUpdated() {
+		return updated;
+	}
+	public void setUpdated(Date updated) {
+		this.updated = updated;
 	}
 	@Override
 	public String toString() {
@@ -103,6 +127,10 @@ public class EmailThread {
 		builder.append(blipId);
 		builder.append(", blipsCount=");
 		builder.append(blipsCount);
+		builder.append(", created=");
+		builder.append(created);
+		builder.append(", updated=");
+		builder.append(updated);
 		builder.append("]");
 		return builder.toString();
 	}

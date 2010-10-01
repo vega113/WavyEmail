@@ -1,5 +1,13 @@
 package com.vegalabs.amail.server.utils;
 
+import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CodingErrorAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -131,6 +139,7 @@ public class MailUtils {
 		
 		public static String cleanSubject(String dirtySubject){
 			boolean isContinue = true;
+			dirtySubject = dirtySubject.trim();
 			while(dirtySubject.length() > 2 && isContinue){
 				isContinue = false;
 				for(String prefix : stripArr){
@@ -141,6 +150,23 @@ public class MailUtils {
 					}
 				}
 			}
-			return dirtySubject;
+			return dirtySubject.trim();
 		}
+		
+		
+		public static String changeCharset(String text, String from,String to) throws UnsupportedEncodingException{
+			Charset utf8charset = Charset.forName(from);
+			Charset iso88591charset = Charset.forName(to);
+
+			ByteBuffer inputBuffer = ByteBuffer.wrap(new byte[]{(byte)0xC3, (byte)0xA2});
+
+			// decode UTF-8
+			CharBuffer data = utf8charset.decode(inputBuffer);
+
+			// encode ISO-8559-1
+			ByteBuffer outputBuffer = iso88591charset.encode(data);
+			byte[] outputData = outputBuffer.array();
+			return new String(outputData, to) ;
+		}
+		
 }

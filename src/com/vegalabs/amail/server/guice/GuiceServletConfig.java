@@ -23,6 +23,8 @@ import com.vegalabs.amail.server.dao.EmailThreadDao;
 import com.vegalabs.amail.server.dao.EmailThreadDaoImpl;
 import com.vegalabs.amail.server.dao.PersonDao;
 import com.vegalabs.amail.server.dao.PersonDaoImpl;
+import com.vegalabs.amail.server.dao.SeriallizableParticipantProfileDao;
+import com.vegalabs.amail.server.dao.SppDaoImpl;
 import com.vegalabs.amail.server.dao.TokenDao;
 import com.vegalabs.amail.server.dao.TokenDaoImpl;
 
@@ -90,6 +92,9 @@ public class GuiceServletConfig extends GuiceServletContextListener {
         bind(CommandFetcher.class).to(CommandFetcherImpl.class);
         bind(EmailThreadDao.class).to(EmailThreadDaoImpl.class);
         bind(TokenDao.class).to(TokenDaoImpl.class);
+        bind(SeriallizableParticipantProfileDao.class).to(SppDaoImpl.class);
+        
+        
 //        bind(TrackerEventDao.class).to(TrackerEventDaoImpl.class);
 //        bind(AdEventDao.class).to(AdEventDaoImpl.class);
       }

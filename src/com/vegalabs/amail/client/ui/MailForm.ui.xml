@@ -62,7 +62,7 @@
 							</g:CaptionPanel>
 							<g:CaptionPanel width='{constants.smallerWidthStr}'>
 								<g:RichTextArea width='{constants.smallerWidthStr}'
-									height='320px' ui:field="contentRichTextArea" text='Sample content' stylePrimaryName='{res.globalCSS.whiteRow}'></g:RichTextArea>
+									height='320px' ui:field="contentRichTextArea"  stylePrimaryName='{res.globalCSS.whiteRow}'></g:RichTextArea>
 							</g:CaptionPanel>
 						</g:VerticalPanel>
 					</g:HorizontalPanel>

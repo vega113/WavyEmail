@@ -24,12 +24,14 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.wave.api.Attachment;
 import com.vegalabs.amail.server.WaveMailRobot;
+import com.vegalabs.amail.server.utils.MailUtils;
+import com.vegalabs.amail.server.utils.MimeUtil;
 
 @Singleton
 public class MailHandlerServlet extends HttpServlet {
 	 Logger LOG = Logger.getLogger(MailHandlerServlet.class.getName());
 	 
-	 private WaveMailRobot robot;
+	 protected WaveMailRobot robot;
 	 int depth = 0;
 	 
 	 @Inject
@@ -48,6 +50,7 @@ public class MailHandlerServlet extends HttpServlet {
 		List<Attachment> attachmentsList = new ArrayList<Attachment>();
 		try {
 			MimeMessage message = new MimeMessage(session, req.getInputStream());
+			
 			String msgContentType = message.getContentType();
 			LOG.info("msgContentType: " + msgContentType);
 			if(msgContentType.contains("text/plain")){
@@ -65,9 +68,9 @@ public class MailHandlerServlet extends HttpServlet {
 				recipientsSet.add(address.getAddress());
 			}
 			
-			String subject = message.getSubject();
+			String subject = message.getSubject().toString();
 			
-			String msgBodyStr = msgBody.toString().replace("\t", " ").replace("\r", "\n");
+			String msgBodyStr = msgBody.toString();
 			robot.recieveMail( msgBodyStr , subject,recipientsSet, message.getFrom()[0].toString(),attachmentsList, message.getSentDate());
 			
 			LOG.info(String.format("New email from %s with content %s", message.getFrom()[0].toString(), msgBody.toString()));
@@ -81,8 +84,7 @@ public class MailHandlerServlet extends HttpServlet {
 
 	
 	private void handleMPart(StringBuilder msgBody,
-			List<Attachment> attachmentsList, Multipart mp)
-			throws MessagingException, IOException {
+			List<Attachment> attachmentsList, Multipart mp) throws Exception {
 		depth++;
 		String msgBodyPart = null;
 		String msgBodyPartHtml = null;
@@ -90,7 +92,7 @@ public class MailHandlerServlet extends HttpServlet {
 
 		for (int i=0, n= mp.getCount(); i<n; i++) {
 			Attachment attachment = null;
-			Part part = mp.getBodyPart(i);
+			BodyPart part = mp.getBodyPart(i);
 			LOG.info("part#" + i + ", part: " + part);
 			
 			String contentType = part.getContentType();
@@ -109,19 +111,27 @@ public class MailHandlerServlet extends HttpServlet {
 			
 			
 			if(contentType.contains("text/html")){
-				LOG.log(Level.INFO, "get text/html: " + part.getContent().toString());
-				msgBodyPartHtml = part.getContent().toString();
+				msgBodyPartHtml = part.getContent().toString().replaceAll("\t", " ").replaceAll("\r", "").replaceAll("\n", "").replaceAll("\b", "").replaceAll("\f", "");
+				LOG.log(Level.INFO, "get text/html: " + msgBodyPartHtml);
 				if(msgBodyPart != null && msgBodyPart.length() > 0){
 					int sbLength = msgBodyPart.length();
 					int plainMsgBodyPartLength = msgBodyPart.length();
 					msgBody.delete(sbLength - plainMsgBodyPartLength, sbLength);
+					String charset = MimeUtil.contentType2Charset(contentType,"UTF-8");
+					if(!"UTF-8".equals(charset)){
+						msgBodyPart = MailUtils.changeCharset(msgBodyPart,charset,"UTF-8");
+					}
 					msgBody.append(msgBodyPartHtml);
 					LOG.info("msgBosy: " + msgBody.toString());
 				}
 			}else if(contentType.contains("text/plain") && msgBodyPartHtml == null){
 				LOG.info(" plain contentType: " + contentType);
-				LOG.log(Level.INFO, "get text/plain: " + part.getContent().toString());
-				msgBodyPart =  part.getContent().toString().replace("\t", " ").replace("\r", "\n");
+				LOG.log(Level.INFO, "get text/plain: " + getContent(part).toString());
+				msgBodyPart =  part.getContent().toString().replaceAll("\t", " ").replaceAll("\r", "\n");
+				String charset = MimeUtil.contentType2Charset(contentType,"UTF-8");
+				if(!"UTF-8".equals(charset)){
+					msgBodyPart = MailUtils.changeCharset(msgBodyPart,charset,"UTF-8");
+				}
 				msgBody.append(msgBodyPart);
 				LOG.info("msgBosy: " + msgBody.toString());
 			}
@@ -173,4 +183,20 @@ public class MailHandlerServlet extends HttpServlet {
 		}
 		return attachment;
 	}
+	
+	
+	protected Object getContent(BodyPart part) throws Exception{
+		String content = null;
+		try {
+			content =  part.getContent().toString();
+		} catch (Exception e) {
+			content =  (String)MimeUtil.getContent(part);
+		}
+		
+//		String charset = MimeUtil.contentType2Charset(part.getContentType(),"UTF-8");
+//		content = MailUtils.toUTF8(content, charset);
+		return content;
+
+	}
+
 }

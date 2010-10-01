@@ -45,20 +45,21 @@ public class UnicodeString
 		return (new String(ostr));		//Return the stringbuffer cast as a string.
 	}
 	
+	
 	public static String deconvert(String str){
 		StringBuilder sb = new StringBuilder(str);
 		while (sb.indexOf("\\u") > -1){
 			int start = sb.indexOf("\\u");
 			int end = start + 6;
+			Character ch = null;
 			String uni = sb.substring(start, end);
-			Integer hint = Integer.decode("0x" + uni.substring(2,6));
-			Character ch = (char)hint.intValue();
-			while(sb.indexOf(uni) > -1){
-				int startUni = sb.indexOf(uni);
-				int endUni = startUni + 6;
-				sb.delete(startUni, endUni);
-				sb.insert(startUni, ch);
-			}
+			String hStr = "0x" + uni.substring(2,6);
+			Integer hint = Integer.decode(hStr);
+			ch = (char)hint.intValue();
+			int startUni = sb.indexOf(uni);
+			int endUni = startUni + 6;
+			sb.delete(startUni, endUni);
+			sb.insert(startUni, ch);
 		}
 		return sb.toString();
 	}

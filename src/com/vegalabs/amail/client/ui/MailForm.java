@@ -48,6 +48,7 @@ import com.vegalabs.amail.client.service.IService;
 import com.vegalabs.amail.client.text.RichTextToolbar;
 import com.vegalabs.amail.client.utils.ClientMailUtils;
 import com.vegalabs.amail.shared.ActivityType;
+import com.vegalabs.amail.shared.HtmlTools;
 import com.vegalabs.amail.shared.UnicodeString;
 
 public class MailForm extends Composite {
@@ -77,6 +78,8 @@ public class MailForm extends Composite {
 	@UiField
 	Button registerBtn;
 	
+	
+	String concatinatedContacts = null;
 	
 	
 	protected VegaUtils utils;
@@ -108,7 +111,7 @@ public class MailForm extends Composite {
 		RichTextToolbar richTextToolbar = new RichTextToolbar(contentRichTextArea);
 		richTextToolbarPanel.add(richTextToolbar);
 		
-		
+		contentRichTextArea.setStylePrimaryName(resources.globalCSS().whiteRow());
 //		utils.putToState("mode","NEW");
 		
 		
@@ -144,22 +147,24 @@ public class MailForm extends Composite {
 						activitiesMap.put("activity", "done/forward");
 						activityType = ActivityType.FORWARD;
 					}
-						
+					
+					final String sender = constructUserMailAddress();
+					final String senderName = utils.retrUserName();
 					
 					String subject = subjectBox.getText();
 					
-					subject = UnicodeString.convert(subject);
-					subject = ClientMailUtils.encodeBase64(subject);
+					subject = encode(subject);
 					subjectBackup = subject;
 					
 					String msgBody = contentRichTextArea.getHTML();
 					bodyHtmlBackup = msgBody;
 					
-					msgBody = UnicodeString.convert(msgBody);
-					msgBody = ClientMailUtils.encodeBase64(msgBody);
+					msgBody = encode(msgBody);
+					String recipientsTmp = encode(recipients);
+					String senderTmp = encode(sender);
+					String senderNameTmp = encode(senderName);
 
-					final String sender = constructUserMailAddress();
-					final String senderName = utils.retrUserName();
+					
 					Log.info("Sending Subject: " + subjectBackup + ", MsgBody: " + bodyHtmlBackup);
 					String waveId = utils.retrWaveId();
 					String iconUrl = utils.retrUserThumbnailUrl();
@@ -169,7 +174,7 @@ public class MailForm extends Composite {
 					}
 					try {
 						img0.setVisible(true);
-						service.sendEmail(recipients,subject,msgBody,sender,senderName,activityType,waveId,blipId,iconUrl, new AsyncCallback<JSONValue>() {
+						service.sendEmail(recipientsTmp,subject,msgBody,senderTmp,senderNameTmp,activityType,waveId,blipId,iconUrl, new AsyncCallback<JSONValue>() {
 
 							@Override
 							public void onSuccess(JSONValue result) {
@@ -188,8 +193,7 @@ public class MailForm extends Composite {
 								try{
 									Log.info("msgBodyForState before encode: " + msgBodyForState);
 									
-									msgBodyForState = UnicodeString.convert(msgBodyForState);
-									msgBodyForState = ClientMailUtils.encodeBase64(msgBodyForState);
+									msgBodyForState = encode(msgBodyForState);
 									Log.info("msgBodyForState after encode: " + msgBodyForState);
 									
 									HashMap<String,String> delta = new HashMap<String, String>();
@@ -249,20 +253,22 @@ public class MailForm extends Composite {
 			}
 		});
 		
-		init();
-		
 		Timer mailPnlTimer = new Timer() {
 			@Override
 			public void run() {
-				loadContacts();
-//				if(utils.retrFromState("contacts") == null){
-//					loadContacts();
-//				}
-				loadingPanel.setVisible(false);
-				mainMailPanel.setVisible(true);
+//				loadContacts();
+				String contactsFromState = utils.retrFromPrivateSate("contacts#" + utils.retrUserId());
+				if(contactsFromState == null){
+					loadContacts();
+				}else{
+					Log.info("contactsFromState: " + contactsFromState);
+					loadingPanel.setVisible(false);
+					mainMailPanel.setVisible(true);
+					init();
+				}
 			}
 		};
-		mailPnlTimer.schedule(1000);//TODO ?should send request to server - to get info for the user
+		mailPnlTimer.schedule(1500);//TODO ?should send request to server - to get info for the user
 		
 		//run on state update - after sent/reply
 		utils.addRunOnStateEventUpdate(new Runnable() {
@@ -279,33 +285,51 @@ public class MailForm extends Composite {
 			
 			@Override
 			public void onClick(ClickEvent event) {
-//				Window.open("http://" + constants.appDomain() + ".appspot.com/LoginServlet?user=" + utils.retrHostId(), "", "");
-				Window.open("http://localhost:8888/LoginServlet?user=" + utils.retrHostId(), "", "");
-				utils.putToState("contacts",null);
+				Window.open("http://" + constants.appDomain() + ".appspot.com/LoginServlet?user=" + utils.retrHostId(), "", "");
+//				Window.open("http://localhost:8888/LoginServlet?user=" + utils.retrHostId(), "", "");
+//				utils.putToState("contacts",null);
 			}
 		});
 	}
 	
 
+	int failuresCount = 0;
+	
+	private class LoadContactsAsyncCallback implements AsyncCallback<JSONValue> {
+		
+		@Override
+		public void onSuccess(JSONValue result) {
+			failuresCount = 0;
+			String contacts = result.isObject().get("contacts").isString().stringValue();
+			concatinatedContacts = decode(contacts);
+			utils.putToPrivateSate("contacts#" + utils.retrUserId(), concatinatedContacts);
+			loadingPanel.setVisible(false);
+			mainMailPanel.setVisible(true);
+			init();
+		}
+		
+		@Override
+		public void onFailure(Throwable caught) {
+			Log.error("loadContacts userId: " + utils.retrUserId(), caught);
+			failuresCount++;
+			if(failuresCount < 2){
+				loadContacts();
+			}else{
+				utils.alert(caught.getMessage());
+				utils.putToPrivateSate("contacts#" + utils.retrUserId(), "");
+				loadingPanel.setVisible(false);
+				mainMailPanel.setVisible(true);
+				init();
+			}
+			
+		}
+	}
+	
 	private void loadContacts() {
 		final String userId = utils.retrUserId();
 		try {
 			Log.info("Loading contacts for: " + userId);
-			service.loadContacts(userId, new AsyncCallback<JSONValue>() {
-				
-				@Override
-				public void onSuccess(JSONValue result) {
-					String contacts = result.isObject().get("contacts").isString().stringValue();
-					utils.putToState("contacts", contacts);
-				}
-				
-				@Override
-				public void onFailure(Throwable caught) {
-					Log.error("loadContacts userId: " + userId , caught);
-					utils.alert(caught.getMessage());
-					img0.setVisible(false);
-				}
-			});
+			service.loadContacts(userId, new LoadContactsAsyncCallback());
 		} catch (RequestException e) {
 			Log.error("loadContacts userId: " + userId , e);
 		}
@@ -314,11 +338,15 @@ public class MailForm extends Composite {
 
 	private void init() {
 		//init to suggest box
+		contentRichTextArea.setStylePrimaryName(resources.globalCSS().whiteRow());
 		String mode = utils.retrFromState("mode");
 		Log.info("mode is: " + mode);
 		
-		String concatinatedContacts = utils.retrFromState("contacts");
+//		String concatinatedContacts = utils.retrFromState("contacts");
 		MultiWordSuggestOracle oracle = new MultiWordSuggestOracle();
+		if(concatinatedContacts == null){
+			concatinatedContacts = utils.retrFromPrivateSate("contacts#" + utils.retrUserId());
+		}
 		if(concatinatedContacts != null){
 			 // Define the oracle that finds suggestions
 		    String[] words = concatinatedContacts.split("#");
@@ -358,7 +386,7 @@ public class MailForm extends Composite {
 			btn1.setText(constants.forwardStr());
 			activitiesMap.put("activity", "done/send");
 		}
-		
+		contentRichTextArea.setStylePrimaryName(resources.globalCSS().whiteRow());
 	}
 	
 	protected ChangeHandler suggestCntChangeHandler = new ChangeHandler() {
@@ -368,7 +396,8 @@ public class MailForm extends Composite {
 				@Override
 				public void run() {
 					String suggestion = suggestCntBox.getTextBox().getText();
-					if(toBox.getText().contains(suggestion)){
+					String txt = toBox.getText();
+					if(suggestion.length() < 4 || !suggestion.contains("@") ||  txt.contains(suggestion)){
 						suggestCntBox.getTextBox().setText("");
 						return;
 					}
@@ -387,8 +416,7 @@ public class MailForm extends Composite {
 		String msgBody = utils.retrFromState("msgBody");
 		Log.info("encoded msgBody: " + msgBody);
 		try{
-			msgBody = ClientMailUtils.decodeBase64(msgBody);
-			msgBody = UnicodeString.deconvert(msgBody);
+			msgBody = decode(msgBody);
 			//XXX deconvert here
 		}catch(Exception e){
 			Log.error(msgBody, e);
@@ -400,21 +428,26 @@ public class MailForm extends Composite {
 		
 		String to = utils.retrFromState("toAll");
 		if(to != null){
+			to = decode(to);
 			toBox.setText(to);
 		}
 		
 		String from = utils.retrFromState("from");
 		if(msgBody != null){
+			from = decode(from);
 			fromBox.setText(from);
 		}
 		
 		String subject = utils.retrFromState("subject");
-		subject = ClientMailUtils.decodeBase64(subject);
-		subject = UnicodeString.deconvert(subject);
+		subject = decode(subject);
 		if(subject != null){
 			subjectBox.setText(subject);
 		}
+		contentRichTextArea.setStylePrimaryName(resources.globalCSS().whiteRow());
 	}
+
+
+	
 	
 	KeyPressHandler disableKeyPressHandler = new KeyPressHandler() {
 		
@@ -500,18 +533,17 @@ public class MailForm extends Composite {
 			btn1.setText(constants.replyStr());
 		}
 		init();
+		contentRichTextArea.setStylePrimaryName(resources.globalCSS().whiteRow());
 	}
 	
 	private void initState(){
 		String msgBody = "Some message body with hebrew. אבג";
-		msgBody = UnicodeString.convert(msgBody);
-		msgBody = ClientMailUtils.encodeBase64(msgBody);
+		msgBody = encode(msgBody);
 		utils.putToState("msgBody", msgBody );
 		utils.putToState("toAll", "Yuri<vega113-googlewave.com@mailwavybeta.appspotmail.com>" );
 		utils.putToState("from", "Yuri Z<vega113@gmail.com>");
 		String subject = "Subject for email";
-		subject = UnicodeString.convert(subject);
-		subject = ClientMailUtils.encodeBase64(subject);
+		subject = encode(subject);
 		utils.putToState("subject", subject);
 		utils.putToState("mode", "READ");
 		utils.putToState("contacts", "vega113@gmail.com#Yuri Z<vega113@gmail.com>#Yuri<vega113-googlewave.com@mailwavybeta.appspotmail.com>#vega113-googlewave.com@mailwavybeta.appspotmail.com#");
@@ -577,5 +609,23 @@ public class MailForm extends Composite {
 		btn2.setVisible(true);
 		btn2.setText(constants.cancelStr());
 	}
+
+
+	private String encode(String text) {
+		text = HtmlTools.escape(text);
+		text = UnicodeString.convert(text);
+//		subject = ClientMailUtils.encodeBase64(subject);
+		return text;
+	}
+	
+	private String decode(String text) {
+//		msgBody = ClientMailUtils.decodeBase64(msgBody);
+//		msgBody = ClientMailUtils.decodeBase64(msgBody);
+		text = UnicodeString.deconvert(text);
+		text = HtmlTools.unescape(text);
+		return text;
+	}
+	
+	
 
 }
