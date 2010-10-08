@@ -13,9 +13,7 @@ import com.vegalabs.amail.server.data.FullWaveAddress;
 import com.vegalabs.amail.server.model.EmailEvent;
 import com.vegalabs.amail.server.model.EmailThread;
 import com.vegalabs.amail.server.model.Person;
-import com.vegalabs.amail.server.utils.Base64Coder;
 import com.vegalabs.amail.server.utils.MailUtils;
-import com.vegalabs.amail.shared.UnicodeString;
 import com.vegalabs.general.server.command.Command;
 import org.json.JSONObject;
 import com.vegalabs.general.server.rpc.util.Util;
@@ -169,8 +167,10 @@ public class SendEmail extends Command {
 		LOG.log(Level.SEVERE, wavelet.getWaveId().toString(), e);
 		// in most cases it will be submitted later
 	}
+	
+	 List<Attachment>  attachments = MailUtils.getAllAttachmentUrls(blip);
 
-    EmailEvent emailEvent = new EmailEvent(activityTypeStr, subject, new Text(msgBody), fromList, toList, sender, sentDate);
+    EmailEvent emailEvent = new EmailEvent(activityTypeStr, subject, new Text(msgBody), fromList, toList, sender, sentDate, attachments);
     String fullWaveId = waveId.split("!")[0] + "#" + waveId.split("!")[1] + "#" + blipId;
     emailEvent.getFullWaveIdPerUserMap().put(sender, fullWaveId);
     emailEventDao.save(emailEvent);
@@ -189,111 +189,118 @@ public class SendEmail extends Command {
 	 }
 	 emailThreadDao.save(thread);
 
-    Properties props = new Properties();
-    Session session = Session.getDefaultInstance(props, null);
-    try {
-        Message msg = new MimeMessage(session);
-        msg.setFrom(new InternetAddress(sender,senderName));
-        String[] splitRec = recipients.split(",");
-        for(String recipient : splitRec){
-        	if(recipient.length() > 4 && recipient.contains("@")){
-        		 msg.addRecipient(Message.RecipientType.TO,
-                         new InternetAddress(recipient));
-        	}
-        }
-        msg.setSubject(subject);
-        
-     
-        Multipart multipart = new MimeMultipart();
-        
-     // Create the message part 
-        MimeBodyPart messageBodyPart = new MimeBodyPart();
-        // Fill the message
-        messageBodyPart.setContent(msgBody, "text/html;");
-        int partNum = 0;
-        multipart.addBodyPart(messageBodyPart,partNum);
-        partNum++;
-        
-        //create attachments
-        LOG.info("Activity type: " + activityTypeStr);
-        if(activityTypeStr.equals("FORWARD") || activityTypeStr.equals("NEW")) {
-        	// Part two is attachment
-            List<Attachment>  attachments = MailUtils.getAllAttachmentUrls(blip);
-        	for(Attachment attachment : attachments){
-        		String filename = attachment.getCaption();
-        		String mimeTmp = attachment.getMimeType().endsWith(";") ? attachment.getMimeType() : attachment.getMimeType() + ";";
-        		byte[] data = attachment.getData();
-        		LOG.info("Attachmnet name: " + filename + ", data length: " + data.length + ", mime: " + mimeTmp);
-        		if(filename.endsWith(".ico")){
-        			filename.replace(".ico", ".png");
-        			mimeTmp = "image/png;";
-        		}else if(filename.endsWith(".xml")){
-        			filename.replace(".xml", ".txt");
-        			mimeTmp = "text/plain;";
-        		}else if(filename.endsWith(".png")){
-        			mimeTmp = "image/png;";
-        		}else if(filename.endsWith(".html")){
-        			mimeTmp = "text/html;";
-        		}else if(filename.endsWith(".doc")){
-        			mimeTmp = "application/msword;";
-        		}else if(filename.endsWith(".pdf")){
-        			mimeTmp = "application/pdf;";
-        		}else if(filename.endsWith(".mp3")){
-        			mimeTmp = "audio/mpeg;";
-        		}else if(filename.endsWith(".gif")){
-        			mimeTmp = "image/gif;";
-        		}
-        		
-        		final String mime = mimeTmp;
-        		MimeBodyPart attachmentBodyPart = new MimeBodyPart(){
-        			@Override
-					public String getContentType() {
-						return mime;
-					}
-
-					@Override
-					public String getDisposition() throws MessagingException {
-						return Part.ATTACHMENT;
-					}
-        			
-        		};
-        		ByteArrayDataSource ds = new ByteArrayDataSource(data,mime);
-        		DataHandler dh = new DataHandler(ds);
-                attachmentBodyPart.setDataHandler(dh);
-                attachmentBodyPart.setFileName(filename);
-                attachmentBodyPart.setDisposition(Part.ATTACHMENT);
-                LOG.info("real content type: " + attachmentBodyPart.getContentType() + ", isDisposition: " + (attachmentBodyPart.getDisposition() != null) + ", ds.contentType: " + ds.getContentType());
-                multipart.addBodyPart(attachmentBodyPart,partNum);
-                partNum++;
-        	}
-        }
-     
-
-        // Put parts in message
-    	msg.setContent(multipart);
-    	msg.saveChanges();
-    	// set the Date: header
-        msg.setSentDate(sentDate);
-        Transport.send(msg);
-
-    } catch (AddressException e) {
-       LOG.log(Level.SEVERE, "", e);
-       throw new IllegalArgumentException(e);
-    } catch (javax.mail.SendFailedException e) {
-    	 LOG.log(Level.SEVERE, "", e);
-    	 throw new IllegalArgumentException(e);
-	}catch (MessagingException e) {
-    	 LOG.log(Level.SEVERE, "", e);
-    	 throw new IllegalArgumentException(e);
-    } catch (UnsupportedEncodingException e) {
-    	 LOG.log(Level.SEVERE, "", e);
-    	 throw new IllegalArgumentException(e);
-	}
+    deliverEmailWithRetry(person, emailEvent);
 	
     JSONObject json = new JSONObject();
     json.put("success", "true");
     return json;
   }
+
+  //no retry yet
+  public static void deliverEmailWithRetry(Person person, EmailEvent emailEvent) {
+	  Properties props = new Properties();
+	  Session session = Session.getDefaultInstance(props, null);
+	  try {
+		  Message msg = new MimeMessage(session);
+		  msg.setFrom(new InternetAddress(person.getWavemail(),person.getName()));
+		  for(String recipient : emailEvent.getTo()){
+			  if(recipient.length() > 4 && recipient.contains("@")){
+				  msg.addRecipient(Message.RecipientType.TO,
+						  new InternetAddress(recipient));
+			  }
+		  }
+		  msg.setSubject(emailEvent.getSubject());
+
+
+		  Multipart multipart = new MimeMultipart();
+
+		  // Create the message part 
+		  MimeBodyPart messageBodyPart = new MimeBodyPart();
+		  // Fill the message
+		  messageBodyPart.setContent(emailEvent.getMsgBody().getValue(), "text/html;");
+		  multipart.addBodyPart(messageBodyPart,0);
+
+		  //create attachments
+		  LOG.info("Activity type: " + emailEvent.getActivityType());
+		  if(emailEvent.getActivityType().equals("FORWARD") || emailEvent.getActivityType().equals("NEW")) {
+			  // Part two is attachment
+			  waveAttachment2Mpart(emailEvent.getAttachments(), multipart, 1);
+		  }
+
+
+		  // Put parts in message
+		  msg.setContent(multipart);
+		  msg.saveChanges();
+		  // set the Date: header
+		  msg.setSentDate(emailEvent.getSentDate());
+		  Transport.send(msg);
+
+	  } catch (AddressException e) {
+		  LOG.log(Level.SEVERE, "person id: " + person.getId() + ", emailEvent id:" + emailEvent.getId() + ", msgBody: " + emailEvent.getMsgBody(), e);
+		  throw new IllegalArgumentException(e);
+	  } catch (javax.mail.SendFailedException e) {
+		  LOG.log(Level.SEVERE, "person id: " + person.getId() + ", emailEvent id:" + emailEvent.getId() + ", msgBody: " + emailEvent.getMsgBody(), e);
+		  throw new IllegalArgumentException(e);
+	  }catch (MessagingException e) {
+		  LOG.log(Level.SEVERE, "person id: " + person.getId() + ", emailEvent id:" + emailEvent.getId() + ", msgBody: " + emailEvent.getMsgBody(), e);
+		  throw new IllegalArgumentException(e);
+	  } catch (UnsupportedEncodingException e) {
+		  LOG.log(Level.SEVERE, "person id: " + person.getId() + ", emailEvent id:" + emailEvent.getId() + ", msgBody: " + emailEvent.getMsgBody(), e);
+		  throw new IllegalArgumentException(e);
+	  }
+  }
+
+	public static int waveAttachment2Mpart(List<Attachment> attachments,
+			Multipart multipart, int partNum) throws MessagingException {
+		for(Attachment attachment : attachments){
+			String filename = attachment.getCaption();
+			String mimeTmp = attachment.getMimeType().endsWith(";") ? attachment.getMimeType() : attachment.getMimeType() + ";";
+			byte[] data = attachment.getData();
+			LOG.info("Attachmnet name: " + filename + ", data length: " + data.length + ", mime: " + mimeTmp);
+			if(filename.endsWith(".ico")){
+				filename.replace(".ico", ".png");
+				mimeTmp = "image/png;";
+			}else if(filename.endsWith(".xml")){
+				filename.replace(".xml", ".txt");
+				mimeTmp = "text/plain;";
+			}else if(filename.endsWith(".png")){
+				mimeTmp = "image/png;";
+			}else if(filename.endsWith(".html")){
+				mimeTmp = "text/html;";
+			}else if(filename.endsWith(".doc")){
+				mimeTmp = "application/msword;";
+			}else if(filename.endsWith(".pdf")){
+				mimeTmp = "application/pdf;";
+			}else if(filename.endsWith(".mp3")){
+				mimeTmp = "audio/mpeg;";
+			}else if(filename.endsWith(".gif")){
+				mimeTmp = "image/gif;";
+			}
+	
+			final String mime = mimeTmp;
+			MimeBodyPart attachmentBodyPart = new MimeBodyPart(){
+				@Override
+				public String getContentType() {
+					return mime;
+				}
+	
+				@Override
+				public String getDisposition() throws MessagingException {
+					return Part.ATTACHMENT;
+				}
+	
+			};
+			ByteArrayDataSource ds = new ByteArrayDataSource(data,mime);
+			DataHandler dh = new DataHandler(ds);
+			attachmentBodyPart.setDataHandler(dh);
+			attachmentBodyPart.setFileName(filename);
+			attachmentBodyPart.setDisposition(Part.ATTACHMENT);
+			LOG.info("real content type: " + attachmentBodyPart.getContentType() + ", isDisposition: " + (attachmentBodyPart.getDisposition() != null) + ", ds.contentType: " + ds.getContentType());
+			multipart.addBodyPart(attachmentBodyPart,partNum);
+			partNum++;
+		}
+		return partNum;
+	}
 
 
 }

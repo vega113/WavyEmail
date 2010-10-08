@@ -5,12 +5,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties; 
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.activation.DataHandler;
 import javax.mail.BodyPart;
 import javax.mail.Message.RecipientType;
 import javax.mail.MessagingException;
@@ -18,8 +23,16 @@ import javax.mail.Multipart;
 import javax.mail.Part;
 import javax.mail.Session; 
 import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage; 
+import javax.mail.internet.MimeUtility;
 import javax.servlet.http.*; 
+import javax.xml.soap.MimeHeader;
+
+import org.json.JSONException;
+
+import jgravatar.Gravatar;
+
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.wave.api.Attachment;
@@ -38,37 +51,32 @@ public class MailHandlerServlet extends HttpServlet {
 	public MailHandlerServlet(WaveMailRobot robot){
 		this.robot = robot;
 	}
+	 
+	 static{
+		 System.setProperty("mail.mime.charset", "UTF-8");
+	 }
+	 Properties props = new Properties(); 
+	 Session session = Session.getDefaultInstance(props, null); 
 
-	public void doPost(HttpServletRequest req, 
-			HttpServletResponse resp) 
-	throws IOException { 
+	public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException { 
 		LOG.info("MailHandlerServlet");
+		
 		PrintWriter writer = resp.getWriter();
 		StringBuilder msgBody = new StringBuilder();
-		Properties props = new Properties(); 
-		Session session = Session.getDefaultInstance(props, null); 
+		
 		List<Attachment> attachmentsList = new ArrayList<Attachment>();
 		try {
-			MimeMessage message = new MimeMessage(session, req.getInputStream());
+			InputStream msgInputStream = req.getInputStream();
+			MimeMessage message = new MimeMessage(session, msgInputStream);
+			String subject = message.getSubject();
 			
-			String msgContentType = message.getContentType();
-			LOG.info("msgContentType: " + msgContentType);
-			if(msgContentType.contains("text/plain")){
-				msgBody.append(message.getContent().toString());
-			}else {
-				Multipart mp = (Multipart)message.getContent();
-				depth = 0;
-				handleMPart(msgBody, attachmentsList, mp);
-			}
-			
+			handleMessage(msgBody, attachmentsList, message);
 			
 			InternetAddress[] recipientsAddresses = (InternetAddress[])message.getRecipients (RecipientType.TO);
 			Set<String> recipientsSet = new LinkedHashSet<String>();
 			for(InternetAddress address : recipientsAddresses){
 				recipientsSet.add(address.getAddress());
 			}
-			
-			String subject = message.getSubject().toString();
 			
 			String msgBodyStr = msgBody.toString();
 			robot.recieveMail( msgBodyStr , subject,recipientsSet, message.getFrom()[0].toString(),attachmentsList, message.getSentDate());
@@ -82,102 +90,122 @@ public class MailHandlerServlet extends HttpServlet {
 		writer.flush();
 	}
 
+
+	private void handleMessage(StringBuilder msgBody,
+			List<Attachment> attachmentsList, MimeMessage message)
+			throws MessagingException, IOException, Exception {
+		String msgContentType = message.getContentType();
+		LOG.info("msgContentType: " + msgContentType);
+		if(msgContentType.contains("text")){
+			msgBody.append(message.getContent().toString());
+		}else if(msgContentType.contains("multipart")){
+			Multipart mp = (Multipart)message.getContent();
+			depth = 0;
+			handleMPart(msgBody, attachmentsList, mp,message.getSubject());
+		}else{
+			LOG.severe("no action for secnario when message content type is: " + msgContentType + "!!!");
+		}
+	}
+
 	
 	private void handleMPart(StringBuilder msgBody,
-			List<Attachment> attachmentsList, Multipart mp) throws Exception {
+			List<Attachment> attachmentsList, Multipart mp, String subject) throws Exception {
 		depth++;
-		String msgBodyPart = null;
+		String msgBodyPartPlain = null;
 		String msgBodyPartHtml = null;
-		LOG.info("total " + mp.getCount() + " parts, toString: " + mp.toString() + ", depth: " + depth);
-
+		LOG.info("MultiPart total " + mp.getCount() + " parts, ContentType: " + mp.getContentType() + ", depth: " + depth);
 		for (int i=0, n= mp.getCount(); i<n; i++) {
 			Attachment attachment = null;
 			BodyPart part = mp.getBodyPart(i);
 			LOG.info("part#" + i + ", part: " + part);
 			
 			String contentType = part.getContentType();
+			
+			LOG.info("body contentType: " + contentType);
 			String disposition = part.getDisposition();
 			LOG.info("disposition: " + disposition);
-			if ((disposition != null) &&  ((disposition.equals(Part.ATTACHMENT) ||  (disposition.equals(Part.INLINE)   ))   )) {
-				attachment = createAttachment(part.getFileName(), part.getInputStream());
-				if(attachment != null){
-					attachmentsList.add( attachment);
-				}
+			if ((disposition != null) &&  ((disposition.equals(Part.ATTACHMENT)   ))   ) {
+				attachment = createAttachment(part.getFileName(),  part.getInputStream());
 				
-				String content = String.valueOf(part.getContent());
-				LOG.info("after create attachment, size: " + attachmentsList.size() +  ", msgBody(?): " + content);
-			}
-			LOG.info("contentType: " + contentType);
-			
-			
-			if(contentType.contains("text/html")){
-				msgBodyPartHtml = part.getContent().toString().replaceAll("\t", " ").replaceAll("\r", "").replaceAll("\n", "").replaceAll("\b", "").replaceAll("\f", "");
-				LOG.log(Level.INFO, "get text/html: " + msgBodyPartHtml);
-				if(msgBodyPart != null && msgBodyPart.length() > 0){
-					int sbLength = msgBodyPart.length();
-					int plainMsgBodyPartLength = msgBodyPart.length();
-					msgBody.delete(sbLength - plainMsgBodyPartLength, sbLength);
-					String charset = MimeUtil.contentType2Charset(contentType,"UTF-8");
-					if(!"UTF-8".equals(charset)){
-						msgBodyPart = MailUtils.changeCharset(msgBodyPart,charset,"UTF-8");
-					}
+				if(attachment != null){
+					attachmentsList.add(attachment);
+				}
+			}else if(contentType.contains("text/html")){
+				msgBodyPartHtml = (String)getContent(part); 
+				boolean isDetectedProblemWithHtml = msgBodyPartHtml.contains("\u0000");
+				msgBodyPartHtml = msgBodyPartHtml.replaceAll("\t", " ").replaceAll("\r", "").replaceAll("\n", "").replaceAll("\b", "").replaceAll("\f", "").replaceAll("\u0000", " ");
+				LOG.log(Level.INFO, "get text/html cleaned: " + msgBodyPartHtml);
+				if(msgBodyPartPlain != null && msgBodyPartPlain.length() > 0 && !isDetectedProblemWithHtml){
+					int sbLength = msgBodyPartPlain.length();
+					int plainMsgBodyPartLength = msgBodyPartPlain.length();
+					msgBody = msgBody.delete(sbLength - plainMsgBodyPartLength, sbLength);
 					msgBody.append(msgBodyPartHtml);
-					LOG.info("msgBosy: " + msgBody.toString());
+					LOG.info("appended html");
 				}
 			}else if(contentType.contains("text/plain") && msgBodyPartHtml == null){
-				LOG.info(" plain contentType: " + contentType);
-				LOG.log(Level.INFO, "get text/plain: " + getContent(part).toString());
-				msgBodyPart =  part.getContent().toString().replaceAll("\t", " ").replaceAll("\r", "\n");
-				String charset = MimeUtil.contentType2Charset(contentType,"UTF-8");
-				if(!"UTF-8".equals(charset)){
-					msgBodyPart = MailUtils.changeCharset(msgBodyPart,charset,"UTF-8");
-				}
-				msgBody.append(msgBodyPart);
-				LOG.info("msgBosy: " + msgBody.toString());
+				msgBodyPartPlain = (String) getContent(part);
+				msgBodyPartPlain = msgBodyPartPlain.replaceAll("\u0000", " ");
+				LOG.log(Level.INFO, "appended text/plain: " + getContent(part));
+				msgBody.append(msgBodyPartPlain);
+			}else if(contentType.contains("message/rfc822")){
+				InputStream embeddedMsgInputStream = part.getInputStream();
+				MimeMessage embeddedMessage = new MimeMessage(session, embeddedMsgInputStream);
+				handleMessage(msgBody, attachmentsList, embeddedMessage);
+				LOG.info("handling message/rfc822");
+			}else if(contentType.contains("multipart/alternative")){
+				Multipart childMp = (Multipart)part.getContent();
+				handleMPart(msgBody, attachmentsList, childMp,subject);
+			}else{
+				LOG.log(Level.SEVERE, "unhandled contentType: " + contentType);
 			}
-			if(contentType.contains("multipart/alternative")){
-				try{
-					Multipart childMp = (Multipart)part.getContent();
-					handleMPart(msgBody, attachmentsList, childMp);
-				}catch(Exception e){
-					LOG.log(Level.SEVERE, "", e);
-				}
-			}
+			
 			
 		}
 	}
 
-	private Attachment createAttachment(String fileName, InputStream inputStream) {
-		LOG.log(Level.INFO, "creating attachment: " + fileName);
+	private String extractTxtFromInline(BodyPart part) throws Exception {
+		return (String) getContent(part);
+	}
+
+
+	private Attachment createAttachment(String fileName, InputStream inputStream ) throws IOException, MessagingException {
+		LOG.log(Level.INFO, "creating data attachment: " + fileName);
 		Attachment attachment = null;
 		byte[] bytes = null;
-		try {
-			int available = inputStream.available();
-			if(available > 0){
-				bytes = new byte[available];
-				inputStream.read(bytes);
-			}
-		} catch (IOException e) {
-			LOG.log(Level.WARNING, fileName, e);
-			List<Byte> bytesList = new ArrayList<Byte>();
-			byte newByte = -1;
+		
+		int available =  inputStream.available();
+		if(available > 1){
+			bytes = new byte[available];
+			inputStream.read(bytes);
+		}
+		else{
 			try {
-				while( (newByte = (byte) inputStream.read()) > -1){
-					bytesList.add(newByte);
-				}
-				if(bytesList.size() > 0){
-					int available = bytesList.size();
-					bytes = new byte[available];
-					for(int i = 0; i< available; i++){
-						bytes[i] = bytesList.get(i);
+				List<Byte> bytesList = new ArrayList<Byte>();
+				byte newByte = -1;
+				try {
+					while( (newByte = (byte) inputStream.read()) > -1){
+						bytesList.add(newByte);
 					}
+					if(bytesList.size() > 0){
+						available = bytesList.size();
+						bytes = new byte[available];
+						for(int i = 0; i< available; i++){
+							bytes[i] = bytesList.get(i);
+						}
+					}
+				} catch (IOException e1) {
+					LOG.log(Level.SEVERE, fileName, e1);
 				}
-			} catch (IOException e1) {
-				LOG.log(Level.SEVERE, fileName, e1);
+			} catch (Exception e) {
+				LOG.log(Level.WARNING, fileName, e);
+				
 			}
 		}
+		
 		if(bytes != null){
-			attachment = new Attachment(fileName,bytes);
+			Map<String,String> properties = new HashMap<String,String>();
+			properties.put(Attachment.CAPTION, fileName);
+			attachment = new Attachment(properties,bytes);
 		}else{
 			LOG.log(Level.WARNING, "bytes are null!!! " + fileName);
 		}
@@ -185,16 +213,10 @@ public class MailHandlerServlet extends HttpServlet {
 	}
 	
 	
+	
 	protected Object getContent(BodyPart part) throws Exception{
 		String content = null;
-		try {
-			content =  part.getContent().toString();
-		} catch (Exception e) {
-			content =  (String)MimeUtil.getContent(part);
-		}
-		
-//		String charset = MimeUtil.contentType2Charset(part.getContentType(),"UTF-8");
-//		content = MailUtils.toUTF8(content, charset);
+		content =  (String)MimeUtil.getContent(part);
 		return content;
 
 	}

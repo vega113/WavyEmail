@@ -14,11 +14,14 @@ import com.google.inject.servlet.ServletModule;
 import com.vegalabs.general.server.command.CommandFetcher;
 import com.vegalabs.general.server.rpc.JsonRpcProcessor;
 import com.vegalabs.amail.server.WaveMailRobot;
+import com.vegalabs.amail.server.servlet.HandleFailedEmailsServlet;
 import com.vegalabs.amail.server.servlet.MailHandlerServlet;
 import com.vegalabs.amail.server.servlet.RegisterRobotServlet;
 import com.vegalabs.amail.server.admin.CommandFetcherImpl;
 import com.vegalabs.amail.server.dao.EmailEventDao;
 import com.vegalabs.amail.server.dao.EmailEventDaoImpl;
+import com.vegalabs.amail.server.dao.EmailFailedEventDao;
+import com.vegalabs.amail.server.dao.EmailFailedEventDaoImpl;
 import com.vegalabs.amail.server.dao.EmailThreadDao;
 import com.vegalabs.amail.server.dao.EmailThreadDaoImpl;
 import com.vegalabs.amail.server.dao.PersonDao;
@@ -41,7 +44,10 @@ public class GuiceServletConfig extends GuiceServletContextListener {
         serveRegex("\\/_ah/mail/.*").with(MailHandlerServlet.class) ;
         serve("/LoginServlet").with(com.vegalabs.amail.server.authSub.LoginServlet.class) ; 
   	  serve("/HandleTokenServlet").with(com.vegalabs.amail.server.authSub.HandleTokenServlet.class); 
-  	  serve("/SuccessMessageServlet").with(com.vegalabs.amail.server.authSub.SuccessMessageServlet.class); 
+  	  serve("/SuccessMessageServlet").with(com.vegalabs.amail.server.authSub.SuccessMessageServlet.class);
+  	 serve("/RetryFailed").with(HandleFailedEmailsServlet.class);
+  	  
+  	
         
         serve("/_wave/verify_token").with(RegisterRobotServlet.class);
         
@@ -93,6 +99,7 @@ public class GuiceServletConfig extends GuiceServletContextListener {
         bind(EmailThreadDao.class).to(EmailThreadDaoImpl.class);
         bind(TokenDao.class).to(TokenDaoImpl.class);
         bind(SeriallizableParticipantProfileDao.class).to(SppDaoImpl.class);
+        bind(EmailFailedEventDao.class).to(EmailFailedEventDaoImpl.class);
         
         
 //        bind(TrackerEventDao.class).to(TrackerEventDaoImpl.class);

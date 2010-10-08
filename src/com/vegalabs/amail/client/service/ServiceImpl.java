@@ -78,11 +78,29 @@ public class ServiceImpl implements IService {
 		com.google.gwt.json.client.JSONObject paramsJson = new JSONObject();
 		com.google.gwt.json.client.JSONObject postDataJson = new JSONObject();
 		
-		
 		paramsJson.put("userId", new JSONString(userId));
 		
 		postDataJson.put("params", paramsJson);
 		postDataJson.put("method", new JSONString("LOAD_CONTACTS"));
+		
+		JavaScriptObject params = postDataJson.getJavaScriptObject();
+		requestService.makeRequest(url,asyncCallback,params);
+		
+	}
+
+
+	@Override
+	public void loadContactsAndContent(String personId, String emailEventId,
+			AsyncCallback<JSONValue> asyncCallback) throws RequestException {
+		com.google.gwt.json.client.JSONObject paramsJson = new JSONObject();
+		com.google.gwt.json.client.JSONObject postDataJson = new JSONObject();
+		
+		
+		paramsJson.put("personId", new JSONString(personId));
+		paramsJson.put("emailEventId", new JSONString(emailEventId));
+		
+		postDataJson.put("params", paramsJson);
+		postDataJson.put("method", new JSONString("LOAD_CONTACTS_AND_CONTENT"));
 		
 		JavaScriptObject params = postDataJson.getJavaScriptObject();
 		requestService.makeRequest(url,asyncCallback,params);

@@ -37,5 +37,13 @@
 	<classpathentry kind="lib" path="war/WEB-INF/lib/javabase64-1.3.1.jar" sourcepath="/home/vega/Downloads/q/src"/>
 	<classpathentry kind="lib" path="war/WEB-INF/lib/gson-1.5.jar"/>
 	<classpathentry kind="lib" path="war/WEB-INF/lib/commons-lang-2.5.jar" sourcepath="war/WEB-INF/lib/commons-lang-2.5-sources.jar"/>
+	<classpathentry kind="lib" path="war/WEB-INF/lib/commons-io-1.4.jar"/>
+	<classpathentry kind="lib" path="war/WEB-INF/lib/icu4j-4_4_2.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="jar:platform:/resource/WaveMail/war/WEB-INF/lib/icu4j-4_4_2-docs.jar!/"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="war/WEB-INF/lib/icu4j-charsets-4_4_2.jar"/>
+	<classpathentry kind="lib" path="war/WEB-INF/lib/json_simple-1.1.jar"/>
 	<classpathentry kind="output" path="war/WEB-INF/classes"/>
 </classpath>

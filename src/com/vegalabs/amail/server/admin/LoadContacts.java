@@ -13,13 +13,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.google.appengine.api.memcache.jsr107cache.GCacheFactory;
-import com.google.gwt.json.client.JSONString;
 import com.google.inject.Inject;
-import com.vegalabs.amail.client.utils.ClientMailUtils;
 import com.vegalabs.amail.server.WaveMailRobot;
-import com.vegalabs.amail.server.utils.Base64Coder;
 import com.vegalabs.amail.server.utils.MailUtils;
-import com.vegalabs.amail.shared.UnicodeString;
 import com.vegalabs.general.server.command.Command;
 import com.vegalabs.general.server.rpc.util.Util;
 
@@ -27,7 +23,7 @@ public class LoadContacts extends Command{
 	
 	
 
-	static Logger LOG = Logger.getLogger(SendEmail.class.getName());
+	static Logger LOG = Logger.getLogger(LoadContacts.class.getName());
 	  private Util util = null;
 	  private WaveMailRobot robot;
 	  private Cache cache;

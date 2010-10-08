@@ -155,18 +155,21 @@ public class MailUtils {
 		
 		
 		public static String changeCharset(String text, String from,String to) throws UnsupportedEncodingException{
-			Charset utf8charset = Charset.forName(from);
-			Charset iso88591charset = Charset.forName(to);
+			LOG.info("in changeCharset changing from: " + from + ", to: " + to + ".  before: " + text );
+			Charset fromCharset = Charset.forName(from);
+			Charset toCharset = Charset.forName(to);
 
-			ByteBuffer inputBuffer = ByteBuffer.wrap(new byte[]{(byte)0xC3, (byte)0xA2});
+			ByteBuffer inputBuffer = ByteBuffer.wrap(text.getBytes());
 
 			// decode UTF-8
-			CharBuffer data = utf8charset.decode(inputBuffer);
+			CharBuffer data = fromCharset.decode(inputBuffer);
 
 			// encode ISO-8559-1
-			ByteBuffer outputBuffer = iso88591charset.encode(data);
+			ByteBuffer outputBuffer = toCharset.encode(data);
 			byte[] outputData = outputBuffer.array();
-			return new String(outputData, to) ;
+			String out = new String(outputData, to);
+			LOG.info("after: " + out );
+			return out ;
 		}
 		
 }

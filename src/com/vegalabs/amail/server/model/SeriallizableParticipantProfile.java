@@ -1,6 +1,7 @@
 package com.vegalabs.amail.server.model;
 
 import java.io.Serializable;
+import java.util.Map;
 
 import javax.jdo.annotations.IdGeneratorStrategy;
 import javax.jdo.annotations.IdentityType;
@@ -89,5 +90,19 @@ public class SeriallizableParticipantProfile  implements Serializable {
 		builder.append(email);
 		builder.append("]");
 		return builder.toString();
+	}
+	public void updateWith(Map<String, String> gravatarProfile) {
+		 String imageUrl = gravatarProfile.get("imageUrl");
+		  if((getImageUrl() == null || "".equals(getImageUrl())) && imageUrl != null){
+			  setImageUrl(imageUrl);
+		  }
+		  String profileName = gravatarProfile.get("name");
+		  if(profileName != null && (getName() == null || "".equals(getName()))){
+			  setName(profileName);
+		  }
+		  String profileUrl = gravatarProfile.get("profileUrl");
+		  if(profileUrl != null && ( getProfileUrl() == null || "".equals(getProfileUrl()))){
+			  setProfileUrl(profileUrl);
+		  }
 	}
 };

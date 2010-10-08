@@ -6,9 +6,12 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.text.Normalizer;
+import java.text.Normalizer.Form;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.mail.BodyPart;
@@ -16,7 +19,13 @@ import javax.mail.MessagingException;
 import javax.mail.Session;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeUtility;
 import javax.servlet.http.HttpServletRequest;
+
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.net.QuotedPrintableCodec;
+
+import com.sun.xml.internal.messaging.saaj.util.ByteInputStream;
 
 public class MimeUtil {
 	private static final Logger LOG = Logger.getLogger(MimeUtil.class.getName());
@@ -60,7 +69,7 @@ public class MimeUtil {
 						out.write((char) ((u << 4) + l));
 					}
 				} catch (Exception e) {
-					throw new IOException("Invalid quoted-printableencoding", e);
+//					throw new IOException("Invalid quoted-printableencoding", e);
 				}
 			} else {
 				out.write(b);
@@ -72,7 +81,7 @@ public class MimeUtil {
 	public static int digit16(byte b) throws IOException {
 		int i = Character.digit(b, 16);
 		if (i == -1) {
-			throw new IOException("Invalid encoding: not a valid digit (radix 16): "                    + b);
+			throw new IOException("<MimeUtil> Invalid encoding: not a valid digit (radix 16): "                    + b);
 		}
 		return i;
 	}
@@ -118,21 +127,69 @@ public class MimeUtil {
 	}
 
 	public static Object getContent(BodyPart part) throws Exception {
-		String charset = contentType2Charset(part.getContentType(),"UTF-8");
-		Object content;
+		String content = null; 
+		InputStream is = part.getInputStream();
+		String encoding = MimeUtility.getEncoding(part.getDataHandler());
+		
 		try {
-			content = part.getContent();
+			try{
+				javax.mail.internet.MimeBodyPart mimeBodyPart = null;
+				if(part instanceof javax.mail.internet.MimeBodyPart){
+					mimeBodyPart = (javax.mail.internet.MimeBodyPart)part;
+					InputStream rawInputStream = mimeBodyPart.getRawInputStream();
+					String charset = contentType2Charset(mimeBodyPart.getContentType(), "UTF-8");
+					String mimeEncoding = mimeBodyPart.getEncoding();
+					LOG.info("mimeEncoding: " + mimeEncoding);
+					ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+						int c;
+						while ((c = rawInputStream.read()) != -1)
+							outputStream.write(c);
+						// get the character set from the content-type
+						byte[] encodedBytes = outputStream.toByteArray();
+						String encodedContent = new String(outputStream.toByteArray(), charset);
+						LOG.info("encoded content: " + encodedContent);
+						String decodedContent = null;
+						if("quoted-printable".equals(mimeEncoding.toLowerCase())){
+							decodedContent = new String(decodeQuotedPrintable(encodedBytes), charset);
+						}else if("base64".equals(mimeEncoding.toLowerCase())){
+							
+							decodedContent = new String(Base64.decodeBase64(encodedBytes),charset);
+						}else{
+							decodedContent = encodedContent;
+						}
+						LOG.info("decoded content: " + decodedContent);
+						content = Normalizer.normalize(decodedContent, Form.NFKC) ;//
+
+				}else{
+					if(content == null || content.length() == 0 ){
+						content = new String(getBytes(is));
+					}
+				}
+			}catch(Exception e){
+				LOG.log(Level.WARNING, "in catch after mime: ",e);
+				if(content == null || content.length() == 0 ){
+					content = new String(getBytes(is));
+					LOG.warning("content from bytes: " + content);
+				}
+			}
+			
 		} catch (Exception e) {
 			try {
-				byte[] out = getBytes(part.getInputStream());
+				
+				byte[] out = getBytes(is);
+				out = getBytes(is);
 				out = decodeQuotedPrintable(out);
-				if (charset != null) {
-					content = new String(out, charset);
-				} else {
-					content = new String(out);
-				}
+				content = new String(out);
+				LOG.info("in getContent:decodeQuotedPrintable encoding: " + encoding + ", content: " + content);
 			} catch (Exception e1) {
-				throw e;
+				LOG.log(Level.WARNING, (String) content, e1);
+				is = MimeUtility.decode(is,encoding);
+				byte[] out = getBytes(is);
+				content = new String(out);
+				if(content == null || content.toString().length() < 2 ){
+					throw e;
+				}
+				LOG.info("in getContent:decodeQuotedPrintable:MimeUtility.decode content: " + content);
 			}
 		}
 		return content;

@@ -14,6 +14,8 @@ import com.google.gwt.i18n.client.Constants.DefaultStringValue;
  */
 public interface ConstantsImpl extends Constants {
 
+	String unhideContentStr();
+	String hideContentStr();
 	String importCnts();
 	String lookupCntsTitle();
 	String addBtnStr();
@@ -45,16 +47,16 @@ public interface ConstantsImpl extends Constants {
 	String trackerUIStr();
 	//size
 	/** width of the whole gadget*/
-	@DefaultStringValue(value="710px")//change both
+	@DefaultStringValue(value="760px")//change both
 	String basicWidthStr();
 	@DefaultIntValue(value=510)//change both
 	int basicWidthInt();
 	
 	/**  width of scroll panel */
-	@DefaultStringValue(value="684px")
+	@DefaultStringValue(value="734px")
 	String smallerWidthStr();
 	/** widht of create panel*/
-	@DefaultStringValue(value="700px")
+	@DefaultStringValue(value="734px")
 	String smallerBiggerWidthStr();
 	
 	@DefaultIntValue(value=320)
@@ -62,7 +64,7 @@ public interface ConstantsImpl extends Constants {
 	@DefaultStringValue(value="72px")
 	String basicItemScrollHeightStr();
 	/**width of AddRemDefLabel*/
-	@DefaultStringValue(value="594px")
+	@DefaultStringValue(value="644px")
 	String basicItemWidthStr();
 	/** width of input text boxes on admin tab*/
 	@DefaultStringValue(value="164px")

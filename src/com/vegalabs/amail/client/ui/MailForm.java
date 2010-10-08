@@ -21,6 +21,7 @@ import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.AsyncCallback;
+import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.DecoratedPopupPanel;
@@ -36,7 +37,6 @@ import com.google.gwt.user.client.ui.RichTextArea;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.SuggestBox;
 import com.google.gwt.user.client.ui.TextBox;
-import com.google.gwt.user.client.ui.TextBoxBase;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
@@ -48,7 +48,6 @@ import com.vegalabs.amail.client.service.IService;
 import com.vegalabs.amail.client.text.RichTextToolbar;
 import com.vegalabs.amail.client.utils.ClientMailUtils;
 import com.vegalabs.amail.shared.ActivityType;
-import com.vegalabs.amail.shared.HtmlTools;
 import com.vegalabs.amail.shared.UnicodeString;
 
 public class MailForm extends Composite {
@@ -72,6 +71,7 @@ public class MailForm extends Composite {
 	@UiField SimplePanel richTextToolbarPanel;
 	@UiField VerticalPanel loadingPanel;
 	@UiField VerticalPanel mainMailPanel;
+	@UiField Anchor hideContentAnchor;
 	
 	SuggestBox suggestCntBox;
 	
@@ -183,11 +183,11 @@ public class MailForm extends Composite {
 								String activity = activitiesMap.get("activity");
 								String msgBodyForState = null;
 								if(activity.contains("reply")){
-									msgBodyForState = "<span style=\"font-size: 8pt; color:#B8B8B8\"><i>" + messages.infoReplySent(new Date(),recipients) +"</i></span><br>" + bodyHtmlBackup;
+									msgBodyForState = "<br><span style=\"font-size: 8pt; color:#B8B8B8\"><i>" + messages.infoReplySent(new Date(),recipients) +"</i></span><br>" + bodyHtmlBackup;
 								}else if(activity.contains("new")){
 									msgBodyForState = bodyHtmlBackup;
 								}else if(activity.contains("forward")){
-									msgBodyForState = "<span style=\"font-size: 8pt; color:#B8B8B8\"><i>" + messages.infoForwardSent(new Date(),recipients) +"</i></span><br>" + bodyHtmlBackup;
+									msgBodyForState = "<br><span style=\"font-size: 8pt; color:#B8B8B8\"><i>" + messages.infoForwardSent(new Date(),recipients) +"</i></span><br>" + bodyHtmlBackup;
 								}
 								Log.info("Activity is: " + activity);
 								try{
@@ -253,22 +253,51 @@ public class MailForm extends Composite {
 			}
 		});
 		
+		hideContentAnchor.addClickHandler(new ClickHandler() {
+			@Override
+			public void onClick(ClickEvent event) {
+				String isHideContentStr = utils.retrFromPrivateSate("isHideContent");
+				
+				boolean isHideContent = !Boolean.parseBoolean(isHideContentStr);
+				setUpIsHideContent(isHideContent);
+				utils.putToPrivateSate("isHideContent",String.valueOf(isHideContent));
+				event.preventDefault();
+			}
+		});
+		
 		Timer mailPnlTimer = new Timer() {
 			@Override
 			public void run() {
 //				loadContacts();
-				String contactsFromState = utils.retrFromPrivateSate("contacts#" + utils.retrUserId());
-				if(contactsFromState == null){
-					loadContacts();
+				
+				String emailEventId = utils.retrFromState("emailEventId");
+				String personId = utils.retrFromState("personId");
+				if(personId != null && emailEventId != null){
+					loadContactsAndContent(personId,emailEventId);
+					utils.putToState("emailEventId", null);
+					utils.putToState("personId", null);
 				}else{
-					Log.info("contactsFromState: " + contactsFromState);
-					loadingPanel.setVisible(false);
-					mainMailPanel.setVisible(true);
-					init();
+					String contactsKey = "contacts#" + utils.retrUserId();
+					String contactsFromState = utils.retrFromState(contactsKey);
+//					utils.putToState(contactsKey, null);
+					utils.putToPrivateSate(contactsKey, contactsFromState);
+					if(contactsFromState == null){
+						contactsFromState = utils.retrFromPrivateSate(contactsKey);
+					}
+					if(contactsFromState == null){
+						Log.info("contacts are empty - sending request to load contacts");
+						loadContacts();
+					}else{
+						concatinatedContacts = contactsFromState;
+						Log.info("contactsFromState: " + contactsFromState);
+						loadingPanel.setVisible(false);
+						mainMailPanel.setVisible(true);
+						init();
+					}
 				}
 			}
 		};
-		mailPnlTimer.schedule(1500);//TODO ?should send request to server - to get info for the user
+		mailPnlTimer.schedule(1200);
 		
 		//run on state update - after sent/reply
 		utils.addRunOnStateEventUpdate(new Runnable() {
@@ -285,13 +314,24 @@ public class MailForm extends Composite {
 			
 			@Override
 			public void onClick(ClickEvent event) {
-				Window.open("http://" + constants.appDomain() + ".appspot.com/LoginServlet?user=" + utils.retrHostId(), "", "");
+				Window.open("http://" + constants.appDomain() + ".appspot.com/LoginServlet?user=" + utils.retrUserId(), "", "");
 //				Window.open("http://localhost:8888/LoginServlet?user=" + utils.retrHostId(), "", "");
 //				utils.putToState("contacts",null);
 			}
 		});
 	}
 	
+
+	protected void loadContactsAndContent(String personId, String emailEventId) {
+		try {
+			Log.info("loadContactsAndContent: " + "personId: " + personId + ", emailEventId: " + emailEventId);
+			service.loadContactsAndContent(personId, emailEventId, new LoadContactsAndContentAsyncCallback());
+		} catch (RequestException e) {
+			Log.error("personId: " + personId + ", emailEventId: " + emailEventId , e);
+		}
+		
+	}
+
 
 	int failuresCount = 0;
 	
@@ -325,6 +365,57 @@ public class MailForm extends Composite {
 		}
 	}
 	
+private class LoadContactsAndContentAsyncCallback implements AsyncCallback<JSONValue> {
+		
+		@Override
+		public void onSuccess(JSONValue result) {
+			failuresCount = 0;
+			String contacts = result.isObject().get("contacts").isString().stringValue();
+			concatinatedContacts = contacts;
+			utils.putToPrivateSate("contacts#" + utils.retrUserId(), concatinatedContacts);
+			
+			String msgBody = result.isObject().get("msgBody").isString().stringValue();
+			String subject = result.isObject().get("subject").isString().stringValue();
+			String from = result.isObject().get("from").isString().stringValue();
+			String toAll = result.isObject().get("toAll").isString().stringValue();
+			String to = result.isObject().get("to").isString().stringValue();
+			
+			Log.info("MsgBody from API: " + msgBody);
+			
+			HashMap<String,String> delta = new HashMap<String, String>();
+			delta.put("msgBody", msgBody);
+			delta.put("subject", subject);
+			delta.put("from", from);
+			delta.put("toAll", toAll);
+			delta.put("to", to);
+			delta.put("mode", "READ");
+			
+			utils.putToState(delta);
+			
+			loadingPanel.setVisible(false);
+			mainMailPanel.setVisible(true);
+			init();
+		}
+		
+		@Override
+		public void onFailure(Throwable caught) {
+			Log.error("loadContacts userId: " + utils.retrUserId(), caught);
+			failuresCount++;
+			if(failuresCount < 2){
+				loadContacts();
+			}else{
+				utils.alert(caught.getMessage());
+				utils.putToPrivateSate("contacts#" + utils.retrUserId(), "");
+				loadingPanel.setVisible(false);
+				mainMailPanel.setVisible(true);
+				init();
+			}
+			
+		}
+	}
+	
+	
+	
 	private void loadContacts() {
 		final String userId = utils.retrUserId();
 		try {
@@ -339,6 +430,13 @@ public class MailForm extends Composite {
 	private void init() {
 		//init to suggest box
 		contentRichTextArea.setStylePrimaryName(resources.globalCSS().whiteRow());
+		String isHideContentStr = utils.retrFromPrivateSate("isHideContent");
+		if(isHideContentStr == null){
+			isHideContentStr = "false";
+			utils.putToPrivateSate("isHideContent","false");
+		}
+		boolean isHideContent = Boolean.parseBoolean(isHideContentStr);
+		setUpIsHideContent(isHideContent);
 		String mode = utils.retrFromState("mode");
 		Log.info("mode is: " + mode);
 		
@@ -346,6 +444,9 @@ public class MailForm extends Composite {
 		MultiWordSuggestOracle oracle = new MultiWordSuggestOracle();
 		if(concatinatedContacts == null){
 			concatinatedContacts = utils.retrFromPrivateSate("contacts#" + utils.retrUserId());
+		}
+		if(concatinatedContacts == null){
+			concatinatedContacts = utils.retrFromState("contacts#" + utils.retrUserId());
 		}
 		if(concatinatedContacts != null){
 			 // Define the oracle that finds suggestions
@@ -414,15 +515,10 @@ public class MailForm extends Composite {
 
 	private void readFromStateIntoGadget() {
 		String msgBody = utils.retrFromState("msgBody");
-		Log.info("encoded msgBody: " + msgBody);
-		try{
-			msgBody = decode(msgBody);
-			//XXX deconvert here
-		}catch(Exception e){
-			Log.error(msgBody, e);
-		}
-		Log.info("decoded msgBody: " + msgBody);
+		Log.info("msgBody from state: " + msgBody);
+		
 		if(msgBody != null){
+			msgBody = decode(msgBody);
 			contentRichTextArea.setHTML(msgBody);
 		}
 		
@@ -547,6 +643,9 @@ public class MailForm extends Composite {
 		utils.putToState("subject", subject);
 		utils.putToState("mode", "READ");
 		utils.putToState("contacts", "vega113@gmail.com#Yuri Z<vega113@gmail.com>#Yuri<vega113-googlewave.com@mailwavybeta.appspotmail.com>#vega113-googlewave.com@mailwavybeta.appspotmail.com#");
+		utils.putToState("personId", "9");
+		utils.putToState("emailEventId", "1");
+		
 	}
 
 
@@ -612,18 +711,35 @@ public class MailForm extends Composite {
 
 
 	private String encode(String text) {
-		text = HtmlTools.escape(text);
+//		text = HtmlTools.escape(text);
 		text = UnicodeString.convert(text);
-//		subject = ClientMailUtils.encodeBase64(subject);
+//		if(!text.equals(UnicodeString.deconvert(UnicodeString.convert(text)))){
+//			throw new IllegalArgumentException("BUG in UnicodeString!!!");
+//		}
+//		text = ClientMailUtils.encodeBase64(text);
 		return text;
 	}
 	
 	private String decode(String text) {
 //		msgBody = ClientMailUtils.decodeBase64(msgBody);
-//		msgBody = ClientMailUtils.decodeBase64(msgBody);
+//		text = ClientMailUtils.decodeBase64(text);
+//		text = text.replaceAll("\t", " ").replaceAll("\r", "").replaceAll("\n", "").replaceAll("\b", "").replaceAll("\f", "");
 		text = UnicodeString.deconvert(text);
-		text = HtmlTools.unescape(text);
+//		text = HtmlTools.unescape(text);
 		return text;
+	}
+
+
+	private void setUpIsHideContent(boolean isHideContent) {
+		if( isHideContent ){
+			//unhide
+			contentRichTextArea.setVisible(false);
+			hideContentAnchor.setText(constants.unhideContentStr());
+			
+		}else{
+			contentRichTextArea.setVisible(true);
+			hideContentAnchor.setText(constants.hideContentStr());
+		}
 	}
 	
 	

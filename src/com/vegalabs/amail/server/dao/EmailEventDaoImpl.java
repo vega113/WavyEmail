@@ -26,7 +26,8 @@ public class EmailEventDaoImpl implements EmailEventDao{
 			entry = pm.makePersistent(entry);
 			entry = pm.detachCopy(entry);
 		}catch(Exception e){
-			LOG.warning(e.getMessage());
+			LOG.warning(e.getMessage() + ", " + e.getClass().getName());
+			//should send back abort here in case the object is too large (over 1MB)//TODO
 		}
 		finally {
 			pm.close();

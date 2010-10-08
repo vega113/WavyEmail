@@ -12,9 +12,9 @@ import javax.jdo.annotations.PersistenceCapable;
 import javax.jdo.annotations.Persistent;
 import javax.jdo.annotations.PrimaryKey;
 
-import com.google.appengine.api.datastore.Blob;
 import com.google.appengine.api.datastore.Text;
 import com.google.gson.annotations.Expose;
+import com.google.wave.api.Attachment;
 @PersistenceCapable(identityType = IdentityType.APPLICATION, detachable = "true")
 public class EmailEvent {
 	@PrimaryKey
@@ -35,9 +35,6 @@ public class EmailEvent {
 	@Persistent
 	@Expose
 	Text msgBody;
-	@Persistent
-	@Expose
-	List<Blob> attachments;
 	@Persistent
 	@Expose
 	List<String> from;
@@ -62,19 +59,25 @@ public class EmailEvent {
 	@Expose
 	private Map<String,String> fullWaveIdPerUserMap;
 	
+	@Persistent(serialized = "true", defaultFetchGroup = "true")
+	@Expose
+	List<Attachment> attachments;
 	
-	public EmailEvent(String activityType, String subject, Text msgBody, List<String> from,List<String> to, String source, Date sentDate){
+	
+	public EmailEvent(String activityType, String subject, Text msgBody, List<String> from,List<String> to, String source, Date sentDate, List<Attachment> attachments){
 		this.activityType = activityType;
 		this.subject = subject;
-		this.msgBody = msgBody;
+		this.msgBody = new Text(msgBody.getValue());
 		this.from = from;
 		this.to = to;
 		this.source = source;
 		this.subjectHash = subject.hashCode();
 		this.msgBodyHash = msgBody.getValue().hashCode();
 		this.created = new Date(System.currentTimeMillis());
+		this.attachments = attachments;
+		this.sentDate = sentDate;
 	}
-	
+
 	public Date getCreated() {
 		return created;
 	}
@@ -99,10 +102,10 @@ public class EmailEvent {
 	public void setMsgBody(Text msgBody) {
 		this.msgBody = msgBody;
 	}
-	public List<Blob> getAttachments() {
-		return attachments != null ? attachments : new ArrayList<Blob>();
+	public List<Attachment> getAttachments() {
+		return attachments != null ? attachments : new ArrayList<Attachment>();
 	}
-	public void setAttachments(List<Blob> attachments) {
+	public void setAttachments(List<Attachment> attachments) {
 		this.attachments = attachments;
 	}
 	public List<String> getFrom() {
@@ -148,5 +151,17 @@ public class EmailEvent {
 
 	public void setFullWaveIdPerUserMap(Map<String, String> fullWaveIdPerUserMap) {
 		this.fullWaveIdPerUserMap = fullWaveIdPerUserMap;
+	}
+
+	public Date getSentDate() {
+		return sentDate;
+	}
+
+	public void setSentDate(Date sentDate) {
+		this.sentDate = sentDate;
+	}
+
+	public Long getId() {
+		return id;
 	}
 }

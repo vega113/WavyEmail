@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.jdo.PersistenceManagerFactory;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -67,11 +68,13 @@ import com.google.wave.api.event.OperationErrorEvent;
 import com.google.wave.api.event.WaveletSelfAddedEvent;
 import com.google.wave.api.impl.DocumentModifyAction.BundledAnnotation;
 import com.vegalabs.amail.server.dao.EmailEventDao;
+import com.vegalabs.amail.server.dao.EmailFailedEventDao;
 import com.vegalabs.amail.server.dao.EmailThreadDao;
 import com.vegalabs.amail.server.dao.PersonDao;
 import com.vegalabs.amail.server.dao.SeriallizableParticipantProfileDao;
 import com.vegalabs.amail.server.data.FullWaveAddress;
 import com.vegalabs.amail.server.model.EmailEvent;
+import com.vegalabs.amail.server.model.EmailFailedEvent;
 import com.vegalabs.amail.server.model.EmailThread;
 import com.vegalabs.amail.server.model.Person;
 import com.vegalabs.amail.server.model.SeriallizableParticipantProfile;
@@ -80,7 +83,6 @@ import com.vegalabs.general.server.command.Command;
 import com.vegalabs.general.server.rpc.JsonRpcRequest;
 import com.vegalabs.general.server.rpc.util.Util;
 import com.vegalabs.amail.shared.ActivityType;
-import com.vegalabs.amail.shared.HtmlTools;
 import com.vegalabs.amail.shared.UnicodeString;
 
 @Singleton
@@ -113,16 +115,18 @@ private static final Logger LOG = Logger.getLogger(WaveMailRobot.class.getName()
   private EmailThreadDao emailThreadDao;
   private PersonDao personDao;
   private SeriallizableParticipantProfileDao sppDao;
+  private EmailFailedEventDao  emailFailedEventDao;
 
   @Inject
   public WaveMailRobot(Injector injector, Util util, EmailEventDao emailEventDao, EmailThreadDao emailThreadDao, PersonDao personDao,
-		  SeriallizableParticipantProfileDao sppDao) {
+		  SeriallizableParticipantProfileDao sppDao, EmailFailedEventDao  emailFailedEventDao) {
     this.injector = injector;
     this.util = util;
     this.emailEventDao = emailEventDao;
     this.emailThreadDao = emailThreadDao;
     this.personDao = personDao;
     this.sppDao = sppDao;
+    this.emailFailedEventDao = emailFailedEventDao;
 
     OAUTH_TOKEN = System.getProperty("OAUTH_TOKEN");
     OAUTH_KEY = System.getProperty("OAUTH_KEY");
@@ -204,8 +208,8 @@ public static final String GADGET_URL = "http://" + System.getProperty("APP_DOMA
 	 Wavelet wavelet = event.getWavelet();
 	  wavelet.setTitle("Create email [" + System.getProperty("APP_DOMAIN") + "]");
 	  LOG.info("Modified by: " + event.getModifiedBy());
-	  String contacts = retrContacts4User(MailUtils.waveId2mailId(event.getModifiedBy()));
-	    HashMap<String,String> contactsUpdateMap = new HashMap<String, String>();
+//	  String contacts = retrContacts4User(MailUtils.waveId2mailId(event.getModifiedBy()));
+//	    HashMap<String,String> contactsUpdateMap = new HashMap<String, String>();
 	    Blip blip = wavelet.getRootBlip();
 	    List<BundledAnnotation> baList = BundledAnnotation.listOf("style/fontSize", "8pt");
 	    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - please attach the file/s below: (please note to set appropriate file extensions, i.e. myimage.jpg)\n");
@@ -227,61 +231,52 @@ public static final String GADGET_URL = "http://" + System.getProperty("APP_DOMA
 		//let's check if if have this profile
 		updateCreateProfile(onlyMail,onlyName);
 	}
+ 	
+ 	//attach the HTML content as attachment - I will use it as source for frame that will display the content in gadget //TODO
+ 	Attachment contentAttachment;
+	try {
+//		contentAttachment = createStrAttachment(WaveMailRobot.filterNonISO(subject).trim() + ".html", msgBody.toString());
+//		if(contentAttachment != null){
+//			attachmentsList.add( contentAttachment);
+//		}
+	} catch (Exception e1) {
+		LOG.warning("Failed to create html content attachment : " + WaveMailRobot.filterNonISO(subject).trim());
+	}
+ 	
 	 try{
-		 //XXX - stupid but have to to
-		 StringBuilder allRecipientsSB = buildAllRecipients(recipientsApp);
-		 
 		 for(String toWaveMailAddress : recipientsApp){
 			 if(!toWaveMailAddress.endsWith("@" + System.getProperty("APP_DOMAIN") + ".appspotmail.com"))
 			 	continue;
 			 
 			 String toWaveAddress = MailUtils.mailId2waveId(toWaveMailAddress.toLowerCase());
-			 
-			 
-			 String cleanSubject = MailUtils.cleanSubject(subject);
-			//need to check if exists thread for this subject given recipient
-			 EmailThread thread = emailThreadDao.getEmailThread4Wavemail(cleanSubject.hashCode(), toWaveMailAddress);
-			 FullWaveAddress threadBlipAddress = null;
-			 if(thread != null){
-				 threadBlipAddress = new FullWaveAddress(thread.getDomain(), thread.getWaveId(), thread.getBlipId());
+			 //get person
+			 Person person = null;
+			 person = personDao.getPerson(toWaveMailAddress);
+			 if(person == null){
+				 person = new Person(toWaveMailAddress);
+				 personDao.save(person);
 			 }
+			 
 			 //check if this recipient already got the email
 			 EmailEvent emailEvent = emailEventDao.getEmailEventByHash(subject.hashCode(),msgBody.hashCode(),sentDate );
-			 FullWaveAddress newBlipFullAddress = null;
-			 boolean isMailReceived = false;
 			 if(emailEvent == null){ 
 				 //first time 
 				 List<String> fromList = new ArrayList<String>();
 				 fromList.add(fromFullEmail);
 				 List<String> toList = new ArrayList<String>();
 				 toList.add(toWaveMailAddress);
-				 EmailEvent newEmailEvent = new EmailEvent("RECEIVE", subject, new Text(msgBody), fromList , toList, fromFullEmail, sentDate);
-				 //---------------
-				 newBlipFullAddress = sendNewEmailToRecipient(newEmailEvent.getMsgBody().getValue(), newEmailEvent.getSubject(), newEmailEvent.getSource(),toWaveMailAddress, toWaveAddress, newEmailEvent.getTo(),attachmentsList,threadBlipAddress);
-				 //check if the bo
-				 String fullWaveId = newBlipFullAddress.toFullWaveId();
-				 newEmailEvent.getFullWaveIdPerUserMap().put(toWaveMailAddress, fullWaveId);
-				 emailEventDao.save(newEmailEvent);
-				 isMailReceived = true;
+				 Text dbText = new Text(msgBody);
+				 EmailEvent newEmailEvent = new EmailEvent("RECEIVE", subject, dbText, fromList , toList, fromFullEmail, sentDate,attachmentsList);
+				 newEmailEvent = emailEventDao.save(newEmailEvent);
 				 
+				 
+				 //---------------
+				 receiveEmailWithRetry(person,newEmailEvent, null);
 			 }else if(emailEvent != null && !emailEvent.getTo().contains(toWaveMailAddress)){
 				 //email is not new - but this recipient didn't get it
-				 newBlipFullAddress = sendNewEmailToRecipient(msgBody, subject, fromFullEmail,toWaveMailAddress, toWaveAddress,emailEvent.getTo(), attachmentsList,threadBlipAddress);
-				 String fullWaveId = newBlipFullAddress.toFullWaveId();
-				 emailEvent.getFullWaveIdPerUserMap().put(toWaveAddress, fullWaveId);
-				 emailEventDao.save(emailEvent);
-				 isMailReceived = true;
-				 
+				 receiveEmailWithRetry(person,emailEvent, null);
 			 }else if(emailEvent != null && emailEvent.getTo().contains(toWaveAddress)){
 				 continue;
-			 }
-			 if( isMailReceived == true ){
-				 if( thread == null){
-					 thread = new EmailThread(cleanSubject.hashCode(), toWaveMailAddress, newBlipFullAddress);
-				 }else{
-					 thread.setBlipsCount(thread.getBlipsCount() + 1);
-				 }
-				 emailThreadDao.save(thread);
 			 }
 		 }
 	 }catch(Exception e){
@@ -292,9 +287,79 @@ public static final String GADGET_URL = "http://" + System.getProperty("APP_DOMA
 	 
  }
 
+ private Attachment createStrAttachment(String fileName, String htmlContent) throws Exception {
+		LOG.log(Level.INFO, "creating str attachment: " + fileName);
+		htmlContent = "<html><head><meta charset=\"UTF-8\"></head><body>" + htmlContent + "</body></html>";
+		Attachment attachment = null;
+		byte[] bytes = htmlContent.getBytes("UTF-8");
+		
+		if(bytes != null){
+			Map<String,String> properties = new HashMap<String,String>();
+			properties.put(Attachment.CAPTION, fileName);
+			properties.put(Attachment.MIME_TYPE, "text/html");
+			
+			attachment = new Attachment(properties,bytes);
+		}else{
+			LOG.log(Level.WARNING, "bytes are null!!! " + fileName);
+		}
+		return attachment;
+	}
 
 
-private StringBuilder buildAllRecipients(Iterable<String> recipientsApp) {
+public void receiveEmailWithRetry(Person person, EmailEvent newEmailEvent, EmailFailedEvent emailFailedEvent) {
+	FullWaveAddress newBlipFullAddress;
+	//need to check if exists thread for this subject given recipient
+	 String cleanSubject = MailUtils.cleanSubject(newEmailEvent.getSubject());
+	 
+	 EmailThread thread = emailThreadDao.getEmailThread4Wavemail(cleanSubject.hashCode(), person.getWavemail().toLowerCase());
+	 FullWaveAddress threadBlipAddress = null;
+	 if(thread != null){
+		 threadBlipAddress = new FullWaveAddress(thread.getDomain(), thread.getWaveId(), thread.getBlipId());
+	 }
+	try {
+		newBlipFullAddress = sendNewEmailToRecipient(newEmailEvent.getMsgBody().getValue(), newEmailEvent.getSubject(), newEmailEvent.getSource(),
+				 person.getWavemail(), newEmailEvent.getTo(),newEmailEvent.getAttachments(),threadBlipAddress);
+//		newBlipFullAddress = sendNewEmailToRecipientVer2(person.getId().toString(), newEmailEvent.getId().toString(), newEmailEvent.getSubject(), newEmailEvent.getSource(),
+//				 person.getWavemail(), MailUtils.mailId2waveId(person.getWavemail().toLowerCase()), newEmailEvent.getTo(),newEmailEvent.getAttachments(),threadBlipAddress);
+		 //check if the bo
+		 String fullWaveId = newBlipFullAddress.toFullWaveId();
+		 newEmailEvent.getFullWaveIdPerUserMap().put(person.getWavemail().toLowerCase(), fullWaveId);
+		 emailEventDao.save(newEmailEvent);
+		 if( thread == null){
+			 thread = new EmailThread(cleanSubject.hashCode(), person.getWavemail().toLowerCase(), newBlipFullAddress);
+		 }else{
+			 thread.setBlipsCount(thread.getBlipsCount() + 1);
+		 }
+		 emailThreadDao.save(thread);
+	} 
+	catch (Exception e) {
+		 LOG.log(Level.WARNING, "EmailEvent id: " + newEmailEvent.getId() + ", person id: " + person.getId(), e);
+		 // TODO schedule to receive again or send bounce
+		 StringWriter exceptionStackTraceWriter = new StringWriter();
+		 e.printStackTrace(new PrintWriter(exceptionStackTraceWriter));
+		 if(emailFailedEvent == null){
+			 emailFailedEvent = new EmailFailedEvent(person.getWavemail(), person.getId(), newEmailEvent.getId(), e.getMessage(), new Text(exceptionStackTraceWriter.toString()));
+			 emailFailedEventDao.save(emailFailedEvent);
+		 }else{
+			 emailFailedEvent.setRetryCount(emailFailedEvent.getRetryCount() + 1);
+			 emailFailedEvent.setExceptionMsg(e.getMessage());
+			 emailFailedEvent.setExceptionStackTrace(new Text(exceptionStackTraceWriter.toString()));
+			 emailFailedEvent.setLastUpdated(new Date());
+			 emailFailedEventDao.save(emailFailedEvent);
+		 }
+		 return;
+	}
+	if(emailFailedEvent != null){
+		emailFailedEvent.setRetryCount(emailFailedEvent.getRetryCount() + 1);
+		emailFailedEvent.setStatus("SUCCESS");
+		emailFailedEvent.setLastUpdated(new Date());
+		emailFailedEventDao.save(emailFailedEvent);
+	}
+}
+
+
+
+public StringBuilder buildAllRecipients(Iterable<String> recipientsApp) {
 	StringBuilder allRecipientsSB = new StringBuilder();
 	 for(String rec : recipientsApp){
 		 allRecipientsSB.append(rec + ","); 
@@ -305,18 +370,14 @@ private StringBuilder buildAllRecipients(Iterable<String> recipientsApp) {
 
 
 private FullWaveAddress sendNewEmailToRecipient(String content, String subject,String fromFullEmail, String waveMailAddressRecipient,
-				String waveAddressRecipient, List<String> allRecipientsList,List<Attachment> attachmentsList, FullWaveAddress threadBlipAddress) {
+		List<String> allRecipientsList,List<Attachment> attachmentsList, FullWaveAddress threadBlipAddress) throws IOException {
+	String waveAddressRecipient = MailUtils.mailId2waveId(waveMailAddressRecipient.toLowerCase());
 	String allRecipients = buildAllRecipients(allRecipientsList).toString();
 	Wavelet threadWavelet = null;
 	String fromMailStripped= MailUtils.stripRecipientForEmail(fromFullEmail);
 	String proxyFor = fromMailStripped.replace("@", "-");
 	if(threadBlipAddress == null){
-		try {
-			threadWavelet = newWave(domain, new LinkedHashSet<String>() ,"NEW_EMAIL_RECEIVED",proxyFor,getRpcServerUrl());
-		} catch (IOException e) {
-			LOG.log(Level.SEVERE, "", e);
-			throw new IllegalArgumentException(e.getMessage());
-		}
+		threadWavelet = newWave(domain, new LinkedHashSet<String>() ,"NEW_EMAIL_RECEIVED",proxyFor,getRpcServerUrl());
 	}else{
 		//fetch wavelet
 		threadWavelet = fetchWavelet(threadBlipAddress.getFullWaveId(), null);
@@ -326,120 +387,182 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 	}
 	
 	FullWaveAddress newBlipFullAddress = null;
-	
 	String subjectTitle = subject;
-	subjectTitle = filterNonAscii(subject);
+	subjectTitle = filterNonISO(subject);
 //	subjectTitle = MailUtils.toUTF8(subjectTitle, null);
 	threadWavelet.setTitle("Email: " + subjectTitle);
-	
-	
 	 
 	 //add participants to it
-	//FIXME - each participant should get it's own gadget
 	 threadWavelet.getParticipants().add(waveAddressRecipient);
 	 threadWavelet.getParticipants().add(System.getProperty("APP_DOMAIN") + "@appspot.com");
-	  
 	 
-	 content = encode(content);
-	 subject = encode(subject);
-	 fromFullEmail = encode(fromFullEmail);
-	 waveMailAddressRecipient = encode(waveMailAddressRecipient);
-	 allRecipients = encode(allRecipients);
-	 
+	  String blipId = null;
 	  Blip blip = null;
 	  if(threadBlipAddress == null){
 		  blip = threadWavelet.getRootBlip(); 
+		  blipId = threadWavelet.getRootBlipId();
 		  newBlipFullAddress = new FullWaveAddress(threadWavelet.getWaveId().getDomain(), threadWavelet.getWaveId().getId(), blip.getBlipId());
-		  appendMailGadget(blip,blip.getBlipId(),content,subject,fromFullEmail,waveMailAddressRecipient, allRecipients );
+		  appendMailGadget(blip,blipId,content,subject,fromFullEmail,waveMailAddressRecipient,waveAddressRecipient, allRecipients );
+		  
 	  }else{
 		  blip = threadWavelet.getBlip(threadBlipAddress.getBlipId()).continueThread();
 	  }
 	  
 	 
-	  LOG.info("Num of attachments: " + attachmentsList.size());
-	  for(Attachment attachment : attachmentsList){
-		  LOG.info("append attachment: " + attachment.getText());
-		  blip.append(attachment);
-	  }
-	  
 	 //submit wave
-	  updateOnMailReceive(threadWavelet, ActivityType.RECEIVE, subject, fromMailStripped);
-	  String blipId = null;
-	  try {
-		  List<JsonRpcResponse> jsonRpcResponseList = submit(threadWavelet, getRpcServerUrl());
-		  if(!blip.isRoot()){
-			  for(JsonRpcResponse jsonRpcResponse : jsonRpcResponseList){
-				  if(jsonRpcResponse.getData().containsKey(ParamsProperty.NEW_BLIP_ID)){
-					  blipId = String.valueOf(jsonRpcResponse.getData().get(ParamsProperty.NEW_BLIP_ID));
-					  break;
-				  }
+	
+	  List<JsonRpcResponse> jsonRpcResponseList = submit(threadWavelet, getRpcServerUrl());
+	  if(!blip.isRoot()){
+		  for(JsonRpcResponse jsonRpcResponse : jsonRpcResponseList){
+			  if(jsonRpcResponse.getData().containsKey(ParamsProperty.NEW_BLIP_ID)){
+				  blipId = String.valueOf(jsonRpcResponse.getData().get(ParamsProperty.NEW_BLIP_ID));
+				  break;
 			  }
-			  appendMailGadget(blip,blipId,content,subject,fromFullEmail,waveMailAddressRecipient, allRecipients );
-			  newBlipFullAddress = new FullWaveAddress(threadWavelet.getWaveId().getDomain(), threadWavelet.getWaveId().getId(), blipId);
-			  submit(threadWavelet, getRpcServerUrl());
 		  }
-		  
-	  } catch (Exception e) {
-		  LOG.log(Level.WARNING, "Wavelet submition failed", e);
+		  appendMailGadget(blip,blipId,content,subject,fromFullEmail,waveMailAddressRecipient,waveAddressRecipient, allRecipients );
+		  newBlipFullAddress = new FullWaveAddress(threadWavelet.getWaveId().getDomain(), threadWavelet.getWaveId().getId(), blipId);
 	  }
-	  return newBlipFullAddress; //XXX return waveId and blipids
+	  updateOnMailReceive(threadWavelet, ActivityType.RECEIVE, subject, fromMailStripped);
+	  appendAttachments(attachmentsList, blip);
+	  submit(threadWavelet, getRpcServerUrl());
+	  return newBlipFullAddress;
 }
 
 
-private final Charset UTF8_CHARSET = Charset.forName("UTF-8");
 
-
-
-private static String removeNonUtf8CompliantCharacters( final String inString ) {
-    if (null == inString ) return null;
-    byte[] byteArr = inString.getBytes();
-    for ( int i=0; i < byteArr.length; i++ ) {
-        byte ch= byteArr[i]; 
-        // remove any characters outside the valid UTF-8 range as well as all control characters
-        // except tabs and new lines
-        if ( !( (ch > 31 && ch < 253 ) || ch == '\t' || ch == '\n' || ch == '\r') ) {
-            byteArr[i]=' ';
-        }
-    }
-    return new String( byteArr );
+private void appendAttachments(List<Attachment> attachmentsList, Blip blip) {
+	LOG.info("Num of attachments: " + attachmentsList.size());
+		for(Attachment attachment : attachmentsList){
+			byte[] data = attachment.getData();
+			int dataSize = data != null ? data.length : 0;
+			LOG.info("append attachment: " + attachment.getCaption() + ", size: " + dataSize + " bytes");
+			blip.append(attachment);
+		}
 }
+
+
+
+	private FullWaveAddress sendNewEmailToRecipientVer2(String personId, String emailEventId, String subject,String fromFullEmail, String waveMailAddressRecipient,
+			String waveAddressRecipient, List<String> allRecipientsList,List<Attachment> attachmentsList, FullWaveAddress threadBlipAddress) throws IOException {
+		Wavelet threadWavelet = null;
+		String fromMailStripped= MailUtils.stripRecipientForEmail(fromFullEmail);
+		String proxyFor = fromMailStripped.replace("@", "-");
+		if(threadBlipAddress == null){
+			threadWavelet = newWave(domain, new LinkedHashSet<String>() ,"NEW_EMAIL_RECEIVED",proxyFor,getRpcServerUrl());
+		}else{
+			//fetch wavelet
+			threadWavelet = fetchWavelet(threadBlipAddress.getFullWaveId(), null);
+			try{
+				String user = System.getProperty("APP_DOMAIN") + "+" + proxyFor + "@appspot.com";
+				if(!threadWavelet.getParticipants().contains(user)){
+					threadWavelet.getParticipants().add(user);
+				}
+			}catch(NullPointerException npe){
+				LOG.log(Level.SEVERE,threadBlipAddress.toFullWaveId(),npe);
+				throw npe;
+			}
+		}
+
+		FullWaveAddress newBlipFullAddress = null;
+
+		String subjectTitle = subject;
+		subjectTitle = filterNonISO(subject);
+		threadWavelet.setTitle("Email: " + subjectTitle);
+
+		//add participants to it
+		threadWavelet.getParticipants().add(waveAddressRecipient);
+		threadWavelet.getParticipants().add(System.getProperty("APP_DOMAIN") + "@appspot.com");
+
+		String blipId = null;
+		Blip blip = null;
+		if(threadBlipAddress == null){
+			LOG.info("new thread");
+			blip = threadWavelet.getRootBlip(); 
+			blipId = threadWavelet.getRootBlipId();
+			newBlipFullAddress = new FullWaveAddress(threadWavelet.getWaveId().getDomain(), threadWavelet.getWaveId().getId(), blipId);
+			appendMailGadgetVer2( personId,emailEventId,blip, blip.getBlipId());
+		}else{
+			blip = threadWavelet.getBlip(threadBlipAddress.getBlipId()).continueThread();
+		}
+
+
+		appendAttachments(attachmentsList, blip);
+
+		//submit wave
+		updateOnMailReceive(threadWavelet, ActivityType.RECEIVE, subject, fromMailStripped);
+		
+		List<JsonRpcResponse> jsonRpcResponseList = submit(threadWavelet, getRpcServerUrl());
+		if(!blip.isRoot()){
+			LOG.info("existing thread");
+			for(JsonRpcResponse jsonRpcResponse : jsonRpcResponseList){
+				if(jsonRpcResponse.getData().containsKey(ParamsProperty.NEW_BLIP_ID)){
+					blipId = String.valueOf(jsonRpcResponse.getData().get(ParamsProperty.NEW_BLIP_ID));
+					break;
+				}
+			}
+			appendMailGadgetVer2(personId,emailEventId,blip,blipId);
+			newBlipFullAddress = new FullWaveAddress(threadWavelet.getWaveId().getDomain(), threadWavelet.getWaveId().getId(), blipId);
+			submit(threadWavelet, getRpcServerUrl());
+		}
+		return newBlipFullAddress;
+	}
+
 
 
 public String decode(String str2Decode) {
 //	str2Decode = Base64Coder.decodeString(str2Decode);
-    str2Decode = UnicodeString.deconvert(str2Decode);
 //	str2Decode = Base64Coder.decodeString(str2Decode);
-	str2Decode = HtmlTools.unescape(str2Decode);
-	return str2Decode;
+//	str2Decode = HtmlTools.unescape(str2Decode);
+	String out = str2Decode;
+	out = UnicodeString.deconvert(str2Decode);
+	LOG.info("in decode, before: " + str2Decode );
+	LOG.info("in decode, after: " + out );
+	return out;
 }
 
 public String encode(String str2Encode) {
-	str2Encode = filterNonUtf8(str2Encode);
+	
 //	str2Encode = new String(str2Encode.getBytes(UTF8_CHARSET));
 //	str2Encode = UnicodeString.deconvert(str2Encode);
 //	str2Encode = removeNonUtf8CompliantCharacters(str2Encode);
 //	str2Encode.replaceAll("\n", "").replaceAll("\r", "").replaceAll("\t", " ");
 //	str2Encode = UnicodeString.convert(str2Encode);
 //	str2Encode = Base64Coder.encodeString(str2Encode);
+	String out = str2Encode;
+	//out = filterNonUtf8(out);
+//	out = HtmlTools.escape( out);
+//	if(!out.equals(UnicodeString.deconvert(UnicodeString.convert(out)))){
+//		LOG.warning("orig: " + out);
+//		LOG.warning("after convert/deconvert: " + UnicodeString.deconvert(UnicodeString.convert(out)));
+//		//throw new RuntimeException("convert/deconvert is not reversible!!! " + out);
+//	}
 	
-	String out = HtmlTools.escape(str2Encode);
-	if(!out.equals(UnicodeString.deconvert(UnicodeString.convert(out)))){
-		throw new RuntimeException("convert/deconvert is not reversible!!! " + out);
-	}
+//	out = charsetUtils.encode(str2Encode).toString();
 	out = UnicodeString.convert(out);
-	
+//	str2Encode = Base64Coder.encodeString(str2Encode);
 	
 //	str2Encode = Base64Coder.encodeString(str2Encode);
-	LOG.info("in encode, before: " + str2Encode + ", after: " + out);
+	LOG.info("in utf-8 encode, before: " + str2Encode );
+	LOG.info("in encode, after: " + out );
 	
 	return out;
+}
+public Map<String,String> encode(Map<String,String> map2Enc){
+	for(String key : map2Enc.keySet()){
+		String value = map2Enc.get(key);
+		value = encode(value);
+		map2Enc.put(key,value);
+		LOG.info("key: " + key);
+	}
+	return map2Enc;
 }
 
 
 
-public static String filterNonAscii(String inString) {
+
+public static String filterNonISO(String inString) {
 	// Create the encoder and decoder for the character encoding
-	Charset charset = Charset.forName("US-ASCII");
+	Charset charset = Charset.forName("ISO-8859-1");
 	CharsetDecoder decoder = charset.newDecoder();
 	CharsetEncoder encoder = charset.newEncoder();
 	// This line is the key to removing "unmappable" characters.
@@ -468,12 +591,18 @@ public static String filterNonUtf8(String inString) {
 	CharsetDecoder decoder = charset.newDecoder();
 	CharsetEncoder encoder = charset.newEncoder();
 	// This line is the key to removing "unmappable" characters.
-	encoder.onUnmappableCharacter(CodingErrorAction.IGNORE);
+	encoder.onUnmappableCharacter(CodingErrorAction.REPORT);
 	String result = inString;
 
 	try {
 		// Convert a string to bytes in a ByteBuffer
-		ByteBuffer bbuf = encoder.encode(CharBuffer.wrap(inString));
+		ByteBuffer bbuf = null;
+		try{
+			bbuf = encoder.encode(CharBuffer.wrap(inString));
+		}catch (CharacterCodingException cce) {
+			String errorMessage = "Exception during character encoding/decoding: " + cce.getMessage();
+			LOG.log(Level.WARNING,errorMessage, cce);
+		}
 
 		// Convert bytes in a ByteBuffer to a character ByteBuffer and then to a string.
 		CharBuffer cbuf = decoder.decode(bbuf);
@@ -492,24 +621,12 @@ public static String filterNonUtf8(String inString) {
 	
  
  
- private String convert2Utf8(String orig){
-	 try{
-		  byte[] utf8Bytes = orig.getBytes("UTF8");
-		    String converted = new String(utf8Bytes, "UTF8");
-		    return converted;
-	  }catch(Exception e){
-		  LOG.log(Level.SEVERE, orig, e);
-	  }
-	  return orig;
- }
- 
- 
-	private void appendMailGadget(Blip blip,String blipId, String msgBody, String subject, String from, String to, String toAll) {
-		LOG.info("appendMailGadget:  blipId: " + blip.getBlipId() + ", msgBody: " + msgBody);
+ private void appendMailGadget(Blip blip, String blipId,String msgBody, String subject, String from, String to,String waveUserId, String toAll) {
+		LOG.info("appendMailGadget:  blipId: " + blipId + ", subject: " + subject);
 		//check if blip already contains the add gadget. 
 		Gadget gadget = extractGadgetFromBlip(GADGET_URL,blip);
 		if(gadget == null){
-//			String contacts = retrContacts4User(to);
+			String contacts = retrContacts4User(to);
 			
 			gadget = new Gadget(GADGET_URL);
 			blip.at(blip.getContent().length()).insert(gadget);
@@ -521,8 +638,36 @@ public static String filterNonUtf8(String inString) {
 		    out.put("from", from);
 		    out.put("toAll", toAll);
 		    out.put("to", to);
-//		    out.put("contacts", contacts);
+		    out.put("contacts#" + waveUserId, contacts);
+		    encode(out);
+		    out.put("1", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 		    out.put("mode", "READ");
+		    updateGadgetState(blip, GADGET_URL, out);
+		    List<BundledAnnotation> baList = BundledAnnotation.listOf("style/fontSize", "8pt");
+		    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - please attach the file/s below: (please note to set appropriate file extensions, i.e. myimage.jpg)\n");
+		}
+		
+	}
+	
+	private void appendMailGadgetVer2(String personId, String emailEventId,Blip blip, String blipId) {
+		LOG.info("appendMailGadget:  blipId: " + blip.getBlipId() + ", emailEventId: " + emailEventId);
+		if(blipId == null){
+			blipId = blip.getBlipId();
+		}
+		//check if blip already contains the add gadget. 
+		Gadget gadget = extractGadgetFromBlip(GADGET_URL,blip);
+		if(gadget == null){
+//			String contacts = retrContacts4User(to);
+			
+			gadget = new Gadget(GADGET_URL);
+			blip.at(blip.getContent().length()).insert(gadget);
+			
+			Map<String,String> out = new HashMap<String, String>();
+		    out.put("personId", personId);
+		    out.put("emailEventId", emailEventId);
+		    out.put("blipId", blipId);
+//		    out.put("contacts", contacts);
+		    out.put("mode", "REQUEST_CONTENT");
 		    updateGadgetState(blip, GADGET_URL, out);
 		    List<BundledAnnotation> baList = BundledAnnotation.listOf("style/fontSize", "8pt");
 		    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - please attach the file/s below: (please note to set appropriate file extensions, i.e. myimage.jpg)\n");
@@ -558,7 +703,7 @@ public static String filterNonUtf8(String inString) {
 
 
 
-	private StringBuilder concatinateContacts(Person person) {
+	public StringBuilder concatinateContacts(Person person) {
 		StringBuilder contactsSb = new StringBuilder();
 		for(String key : person.getContacts().keySet()){
 			String value = person.getContacts().get(key);
@@ -678,15 +823,15 @@ public String makeBackStr(String forumName) {
   protected ParticipantProfile getCustomProfile(String name) {
 	  LOG.info("requested profile for: " + name);
 	  ParticipantProfile profile = null;
-	  Object o = cache.get("SeriallizableParticipantProfile#"+name);
+	  Object o = cache.get("SeriallizableParticipantProfile1#"+name);
 	  profile = o != null ? ((SeriallizableParticipantProfile)o).getProfile() : null;
 	  if(profile != null){
 		  if(profile.getImageUrl() == null || "".equals(profile.getImageUrl()) ){
 			  Gravatar gravatar = new Gravatar();
 			  String email = switch2email(name);
 			  if(email != null){
-				  String imageUrl = gravatar.getUrl(email);
-				  ((SeriallizableParticipantProfile)o).setImageUrl(imageUrl);
+				 
+				  updateProfileWithGravatar(email,((SeriallizableParticipantProfile)o));
 				  profile = ((SeriallizableParticipantProfile)o).getProfile();
 			  }
 		  }
@@ -704,22 +849,20 @@ public String makeBackStr(String forumName) {
 		  SeriallizableParticipantProfile dbProfile = sppDao.getSeriallizableParticipantProfile(email);
 		  LOG.info("Found profile in DB: " + dbProfile);
 		  if(dbProfile != null){
-			  if(dbProfile.getImageUrl() == null){
-				  Gravatar gravatar = new Gravatar();
-				  String imageUrl = gravatar.getUrl(email);
-				  dbProfile.setImageUrl(imageUrl);
+			  if(dbProfile.getImageUrl() == null){ 
+				  updateProfileWithGravatar( email,dbProfile);
 				  sppDao.save(dbProfile);
-				  cache.put("SeriallizableParticipantProfile#"+name, dbProfile);
+				  LOG.info("Found profile in DB: " + printProfile(dbProfile.getProfile()));
+				  cache.put("SeriallizableParticipantProfile1#"+name, dbProfile);
 			  }
 			  
 			  return dbProfile.getProfile();
 		  }else{
 			  //no profile at all - create
-			  Gravatar gravatar = new Gravatar();
-			  String imageUrl = gravatar.getUrl(email);
-			  SeriallizableParticipantProfile newProfile = new SeriallizableParticipantProfile(imageUrl,email,null, null);
+			  SeriallizableParticipantProfile newProfile = new SeriallizableParticipantProfile(null,email,null, null);
+			  updateProfileWithGravatar( email,newProfile);
 			  sppDao.save(newProfile);
-			  cache.put("SeriallizableParticipantProfile#"+name, newProfile);
+			  cache.put("SeriallizableParticipantProfile1#"+name, newProfile);
 			  return newProfile.getProfile();
 		  }
 	  }
@@ -740,6 +883,23 @@ public String makeBackStr(String forumName) {
     			  getRobotProfilePageUrl());
       }
   }
+
+
+
+public void updateProfileWithGravatar(String email,
+		SeriallizableParticipantProfile newProfile) {
+	Gravatar gravatar = new Gravatar();
+	Map<String, String> gravatarProfile = new HashMap<String, String>();
+	try {
+			gravatarProfile = gravatar.getProfile(email);
+		} catch (IOException e) {
+			LOG.log(Level.WARNING, email, e);
+		} catch (JSONException e) {
+			LOG.log(Level.WARNING, email, e);
+		}
+	  newProfile.updateWith(gravatarProfile);
+	  LOG.info("updated: " + newProfile.toString());
+}
 
 
 
@@ -929,7 +1089,7 @@ protected String[] createGadgetUrlsArr() {
 	
 	public String updateOnEmailSent(Wavelet wavelet,String blipId, int activityType, String recipients, String subject) {
 		
-		subject = filterNonAscii(subject);
+		subject = filterNonISO(subject);
 		String appdomain = System.getProperty("APP_DOMAIN");
 		Date today = new Date(System.currentTimeMillis());
 		SimpleDateFormat dateFormat = new SimpleDateFormat("MMM-dd");
@@ -970,8 +1130,8 @@ protected String[] createGadgetUrlsArr() {
 			if(!tags.contains("email.activity=new"))
 				tags.add("email.activity=new");
 			for(String recipient : recArr){
-				String strippedRecpient = MailUtils.stripRecipientForEmail(recipient);
-				if(!tags.contains("email.sent.to=" + strippedRecpient))
+				String strippedRecpient = MailUtils.stripRecipientForEmail(recipient.trim());
+				if(strippedRecpient != null && !strippedRecpient.equals("") && !tags.contains("email.sent.to=" + strippedRecpient))
 					tags.add("email.sent.to=" + strippedRecpient);
 			}
 			String sentWhenStr = "email.sent.when=" + todayStr;
@@ -1033,15 +1193,16 @@ protected String[] createGadgetUrlsArr() {
 		 try{
 			 wavelet = fetchWavelet( new WaveId(domain, id), new WaveletId(domain, "conv+root"), proxyFor,  getRpcServerUrl());
 		  }catch (IOException e) {
-			  LOG.log(Level.INFO,"can happen if the robot was removed manually from the wave or if timeout. waveId: " + waveId + ", proxyFor: " + proxyFor,e);
+			  LOG.log(Level.WARNING,"can happen if the robot was removed manually from the wave or if timeout. waveId: " + waveId + ", proxyFor: " + proxyFor,e);
+			  //FIXME - cannot continue from here - need to abort and resubmit
 		  }
 		 return wavelet;
 	 }
 
 
 
-	public void updateCreateProfile(String email, String name) {
-		 Object o = cache.get("SeriallizableParticipantProfile#"+email.replace("@", "-"));
+	public SeriallizableParticipantProfile updateCreateProfile(String email, String name) {
+		 Object o = cache.get("SeriallizableParticipantProfile1#"+email.replace("@", "-"));
 		 SeriallizableParticipantProfile profile = null;
 		 if(o != null){
 			 profile = ((SeriallizableParticipantProfile)o);
@@ -1060,7 +1221,8 @@ protected String[] createGadgetUrlsArr() {
 			 profile = new SeriallizableParticipantProfile(null, email, name, null);
 			 sppDao.save(profile);
 		 }
-		
+		 return profile;
 	}
+	
 	
 }

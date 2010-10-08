@@ -1,5 +1,6 @@
 package com.vegalabs.amail.server.model;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -13,7 +14,7 @@ import javax.jdo.annotations.PrimaryKey;
 
 import com.google.gson.annotations.Expose;
 @PersistenceCapable(identityType = IdentityType.APPLICATION, detachable = "true")
-public class Person {
+public class Person implements Serializable {
 	@PrimaryKey
 	@Persistent(valueStrategy = IdGeneratorStrategy.IDENTITY)
 	@Expose
@@ -229,6 +230,10 @@ public class Person {
 		}
 		builder.append("]");
 		return builder.toString();
+	}
+
+	public Long getId() {
+		return id;
 	}
 	
 }

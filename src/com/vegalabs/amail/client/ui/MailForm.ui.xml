@@ -58,11 +58,21 @@
 					<g:HorizontalPanel>
 						<g:VerticalPanel>
 							<g:CaptionPanel width='{constants.smallerWidthStr}'>
-								<g:SimplePanel ui:field="richTextToolbarPanel"></g:SimplePanel>
+								<g:HorizontalPanel>
+									<g:SimplePanel ui:field="richTextToolbarPanel"></g:SimplePanel>
+									<g:HTML width='20px'></g:HTML>
+									<g:HorizontalPanel>
+										<g:VerticalPanel>
+											<g:Anchor text='{constants.hideContentStr}' ui:field="hideContentAnchor" href='#'></g:Anchor>
+										</g:VerticalPanel>
+									</g:HorizontalPanel>
+								</g:HorizontalPanel>
 							</g:CaptionPanel>
 							<g:CaptionPanel width='{constants.smallerWidthStr}'>
-								<g:RichTextArea width='{constants.smallerWidthStr}'
-									height='320px' ui:field="contentRichTextArea"  stylePrimaryName='{res.globalCSS.whiteRow}'></g:RichTextArea>
+								<g:ScrollPanel >
+									<g:RichTextArea width='{constants.smallerWidthStr}'
+									height='420px' ui:field="contentRichTextArea"  stylePrimaryName='{res.globalCSS.whiteRow}'></g:RichTextArea>
+								</g:ScrollPanel>
 							</g:CaptionPanel>
 						</g:VerticalPanel>
 					</g:HorizontalPanel>

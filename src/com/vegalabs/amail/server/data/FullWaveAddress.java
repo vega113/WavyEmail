@@ -6,6 +6,13 @@ public class FullWaveAddress {
 		this.id = id;
 		this.blipId = blipId;
 	}
+	public FullWaveAddress(String fullWaveId) {
+		String[] split = fullWaveId.split("/");
+		this.domain = split[2];
+		this.id = split[3];
+		this.blipId = split[6];
+	}
+	
 	String domain;
 	String id;
 	String blipId;
