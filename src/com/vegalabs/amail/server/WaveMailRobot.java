@@ -204,13 +204,19 @@ public static final String GADGET_URL = "http://" + System.getProperty("APP_DOMA
   @Override
   public void onWaveletSelfAdded(WaveletSelfAddedEvent event) {
 	  String proxyFor = event.getBundle().getProxyingFor();
-	  LOG.log(Level.INFO, "onWaveletSelfAdded proxyFor: " + proxyFor + ", wave title: " + event.getWavelet().getTitle() + ", waveId: " + event.getWavelet().getWaveId().toString());
+	  LOG.log(Level.INFO, "onWaveletSelfAdded proxyFor: " + proxyFor + ", wave title: " + event.getWavelet().getTitle() + ", waveId: " + event.getWavelet().getWaveId().toString() + ", blipId: " + event.getBlip().getBlipId() + ", isRoot: " + event.getBlip().isRoot());
 
 	  updateWaveletOnEmailSent(event.getWavelet(),-1, "", "");//just tag as email
 	  Wavelet wavelet = event.getWavelet();
+	 
 	  wavelet.setTitle("Create Wavy eMail [" + System.getProperty("APP_DOMAIN") + "]");
 	  LOG.info("Modified by: " + event.getModifiedBy());
-	  appendMailGadget(event.getBlip(), event.getBlip().getBlipId(), "", "", "", "", event.getModifiedBy(),"", "NEW");
+	  //fetch the wavelet
+	  if(event.getBlip().isRoot()){
+		  appendMailGadget(event.getBlip(), event.getBlip().getBlipId(), "", "", "", "", event.getModifiedBy(),"", "NEW");
+	  }else{
+		  appendAttachmentInstructions(event.getBlip());
+	  }
   }
 
 		
@@ -523,17 +529,23 @@ public static String filterNonISO(String inString) {
 		    
 		    out.put("mode", mode);
 		    updateGadgetState(blip, GADGET_URL, out);
-		    List<BundledAnnotation> baList = BundledAnnotation.listOf("style/fontSize", "8pt");
-		    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - jus attach the file/s below, i.e. switch to \"Edit\" mode, and then attach files to the blip by clicking on the staple icon on the wave's top toolsbar. Please note to set appropriate file extensions, i.e. myimage.jpg." + 
-		    		"\nAlso note - maximum email size is 1MB due to Google AppEngine restrictions." + 
-		    		" You can check ");
-		    List<BundledAnnotation> baList1 = BundledAnnotation.listOf("style/fontSize", "8pt", "link/manual", "http://code.google.com/appengine/docs/python/mail/overview.html#Attachments");
-		    blip.at(blip.getContent().length()).insert(baList1,"here");
-		    blip.at(blip.getContent().length()).insert(baList," list of attachment types that are allowed by AppEngine\n");
+		    appendAttachmentInstructions(blip);
 		    
 		}
 		
 	}
+
+
+
+public void appendAttachmentInstructions(Blip blip) {
+	List<BundledAnnotation> baList = BundledAnnotation.listOf("style/fontSize", "8pt");
+	blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - jus attach the file/s below, i.e. switch to \"Edit\" mode, and then attach files to the blip by clicking on the staple icon on the wave's top toolsbar. Please note to set appropriate file extensions, i.e. myimage.jpg." + 
+			"\nAlso note - maximum email size is 1MB due to Google AppEngine restrictions." + 
+			" You can check ");
+	List<BundledAnnotation> baList1 = BundledAnnotation.listOf("style/fontSize", "8pt", "link/manual", "http://code.google.com/appengine/docs/python/mail/overview.html#Attachments");
+	blip.at(blip.getContent().length()).insert(baList1,"here");
+	blip.at(blip.getContent().length()).insert(baList," list of attachment types that are allowed by AppEngine\n");
+}
 	
 	public void updateGadgetState(Blip blip, String gadgetUrl,Map<String, String> out) {
 		Gadget gadget = extractGadgetFromBlip(gadgetUrl,blip);
