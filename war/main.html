@@ -1,0 +1,71 @@
+<html>
+<head>
+<style>
+  .waveblip {
+    border: 1px solid gray;
+  }
+  
+  .wavethread {
+    margin-left: 20px;
+  }
+</style>
+<link rel="stylesheet" href="css/reset.css" type="text/css" media="screen" charset="utf-8" />
+		<link rel="stylesheet" href="css/text.css" type="text/css" media="screen" charset="utf-8" />
+		<link rel="stylesheet" href="css/960.css" type="text/css" media="screen" charset="utf-8" />
+		<link rel="stylesheet" href="css/tabs.css" type="text/css" media="screen" charset="utf-8" />
+
+		<link rel="stylesheet" href="css/mystyle.css" type="text/css" media="screen" charset="utf-8" />
+
+</head>
+<body>
+
+
+<div id="wave_embed_one" style="display:none; background-color: #c9e2fc">
+<!--  <a onclick="{{addparticipant}}" href="#">Add Participant</a>-->
+  By {{participantlist}}
+<!--  <a onclick="{{reload}}" href="#">Reload</a>-->
+  <div class="wavebody">
+      <div class="info">
+        <div style="float:right;color:#555">{{format_time(blip.lastModifiedTime)}}</div>
+        <b>By</b> {{contributorlist}}
+      </div>
+      {{blip.html}}
+      
+<!--      <a onclick="{{edit}}" href="#">Edit</a> -->
+<!--      <a onclick="{{remove}}" href="#">Remove</a> -->
+<!--      <a onclick="{{reply}}" href="#">Reply</a> -->
+      
+  </div>
+  {{bliparr.length-1}} Responses <br>
+  <div class="tags">
+    {{wave.tags.join(', ')}}
+<!--    <a onclick="{{addtag}}" href="#">Add Tag</a>-->
+  </div>
+<!--  <a href="{{wave.permalink}}">Open in Google's awesome client</a>-->
+<!--  <div class="waveedit">-->
+<!--    <textarea style="width:100%;height:130px" class="wavetext"></textarea>-->
+<!--    <button onclick="{{submit}}">Submit</button> or <a href="#" onclick="{{cancel}}">cancel</a>-->
+<!--  </div>-->
+<!--  <textarea style="width:100%;height:130px" id="replystuff"></textarea>-->
+<!--  <button onclick="magic.reply(document.getElementById('replystuff').value)">Leave a comment</button>-->
+</div>
+<script type="text/javascript" src="http://anony-bot.appspot.com/assets/embed2.mini.js"></script>
+<script type="text/javascript">
+  var magic = w2_embed({
+    element: document.getElementById('wave_embed_one'),
+    waveid: 'googlewave.com!w+-va3a8I6C',
+    poll_updates: true,
+  })
+</script>
+<script type="text/javascript">
+		var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+		document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+		</script>
+		<script type="text/javascript">
+		try{
+		var pageTracker = _gat._getTracker("UA-13269470-6");
+		pageTracker._trackPageview();
+		} catch(err) {}
+	</script>
+</body>
+</html>

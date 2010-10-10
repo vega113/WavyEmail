@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
-  <application>mailwavybeta</application>
-  <version>beta009</version>
+  <application>wavyemailbeta</application>
+  <version>beta011</version>
 
   <!-- Configure serving/caching of GWT files -->
   <static-files>
@@ -19,13 +19,19 @@
 <!--    <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>-->
     <property name="com.google.gdata.DisableCookieHandler" value="true"/>
     
-    <!-- forumbotty config properties -->
+    <!-- config properties -->
     
-     <property name="APP_DOMAIN" value="mailwavybeta"/>
-    <property name="OAUTH_TOKEN" value="AOijR2dn-RKQWKY0_QZFo5T0yJ2c0HF2wIZXfMRG3kRzP8YLVescict0B5bgLwW6t8YFSk_MPcOJykDNL2u_5ef8FIcvtYs58Q39UNIIioycyb-OR4GEUnh20nxlL8IRTWTBpVQKtLieefuvJNAdnkf2B-uhpj-Vqw=="/>
-    <property name="OAUTH_KEY" value="554444543000"/> 
-    <property name="OAUTH_SECRET" value="U/oxraPvYefFgLExxEv69Gka"/> 
-    <property name="SECURITY_TOKEN" value="8528"/>         
+     <property name="APP_DOMAIN" value="wavyemailbeta"/>
+    <property name="OAUTH_TOKEN" value="AOijR2dLavenB5EYtDMFI11DFK2MH_c_6HAgcJsOvncq8McX2FNCisWOjbvxFu2-gx3Zpw91YqnkM5ZswYj6yrLRvf7qIfyBW60g19D3MzbSoa2eNIeDL3G-B3Qb_2QBwkyxp_BA49iWg6Xb2FsDY9L5qhXClrIaCw=="/>
+    <property name="OAUTH_KEY" value="1069699724286"/> 
+    <property name="OAUTH_SECRET" value="wjN4fWYZLN24A2Q023LcmZut"/> 
+    <property name="SECURITY_TOKEN" value="7543"/>        
+    
+<!--    <property name="APP_DOMAIN" value="mailwavybeta"/>-->
+<!--    <property name="OAUTH_TOKEN" value="AOijR2dn-RKQWKY0_QZFo5T0yJ2c0HF2wIZXfMRG3kRzP8YLVescict0B5bgLwW6t8YFSk_MPcOJykDNL2u_5ef8FIcvtYs58Q39UNIIioycyb-OR4GEUnh20nxlL8IRTWTBpVQKtLieefuvJNAdnkf2B-uhpj-Vqw=="/>-->
+<!--    <property name="OAUTH_KEY" value="554444543000"/> -->
+<!--    <property name="OAUTH_SECRET" value="U/oxraPvYefFgLExxEv69Gka"/> -->
+<!--    <property name="SECURITY_TOKEN" value="8528"/>          -->
 <!--    <property name="APP_DOMAIN" value="digestmaily"/>-->
 <!--    <property name="OAUTH_TOKEN" value="AOijR2fNAdDKYvHBn0VmHlnf4cXKlf4TupWVABOa43cAGrNcSvP54F4u7YoepqEWLpRmbyB8QW2wqKE3dGBj0ZuFFduZIz2aCOhQDAcEAsEh48rZwK4kxawrxugzdefItOHgFJU4sTeBHjuKuvsSw3RKjbrKI1rpJw=="/>-->
 <!--    <property name="OAUTH_KEY" value="517243249112"/> -->
@@ -39,8 +45,8 @@
     
     <property name="DIGEST_WAVE_DOMAIN" value="googlewave.com"/>     
     <property name="BOTTY_OWNER_WAVE_ID" value="vega113@googlewave.com"/>     
-    <property name="ROBOT_ICON_URL" value="http://lh5.ggpht.com/_tsWs83xehHE/TK29x6AIwiI/AAAAAAAAFhs/TpdL0jBhBNE/mailwavy_icon_beta.png"/>
-     <property name="PROFILE_URL" value="https://wave.google.com/wave/waveref/googlewave.com/w+rZRxDbZkBhv/~/conv+root/b+rZRxDbZkBhw"/>
+    <property name="ROBOT_ICON_URL" value="http://lh6.ggpht.com/_tsWs83xehHE/TLBQ-7Nu-VI/AAAAAAAAFiA/ePzhrvMXkfI/wavyemailbeta.png"/>
+     <property name="PROFILE_URL" value="https://wave.google.com/wave/waveref/googlewave.com/w+-va3a8I6C"/>
     
     
      

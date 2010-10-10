@@ -82,6 +82,9 @@ public class UnicodeString
 	
 	
 	public static String deconvert(String str){
+		if(str == null){
+			return "";
+		}
 		StringBuilder sb = new StringBuilder(str);
 		while (sb.indexOf("\\u") > -1){
 			int start = sb.indexOf("\\u");

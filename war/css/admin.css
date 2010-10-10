@@ -1,0 +1,36 @@
+body {
+  font-size: 15px;
+  color: black;
+  font-family: "Times New Roman",Times,FreeSerif,serif;;
+}
+
+#status {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  color: white;
+  font-weight: bold;
+  background: red;
+  font-size: 15px; 
+}
+
+#defaultParticipantsList, #defaultTagsList, #autoTagsList{
+  font-size: 18px;
+  color: blue;
+  line-height: 1.7;
+  verticial-align: middle;
+}
+
+.menuLink, .menuLink:visited {
+  font-weight: bold;
+  font-size: 20px;
+  color: blue;
+  text-decoration: none;
+}
+
+.menuLink:hover {
+  font-weight: bold;
+  font-size: 20px;
+  color: black;
+  text-decoration: none;
+}

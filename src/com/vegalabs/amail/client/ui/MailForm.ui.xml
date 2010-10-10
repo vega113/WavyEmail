@@ -51,32 +51,44 @@
 					<g:HorizontalPanel>
 						<g:Label text='Subject' width='100px'></g:Label>
 						<g:TextBox width='{constants.basicItemWidthStr}'
-							ui:field="subjectBox" text='Test email gadget'></g:TextBox>
+							ui:field="subjectBox"></g:TextBox>
 					</g:HorizontalPanel>
 				</g:CaptionPanel>
-				<g:CaptionPanel width='{constants.basicWidthStr}'>
-					<g:HorizontalPanel>
+					<g:HorizontalPanel width='{constants.basicWidthStr}'>
 						<g:VerticalPanel>
-							<g:CaptionPanel width='{constants.smallerWidthStr}'>
+							<g:CaptionPanel width='{constants.basicWidthStr}' >
 								<g:HorizontalPanel>
 									<g:SimplePanel ui:field="richTextToolbarPanel"></g:SimplePanel>
-									<g:HTML width='20px'></g:HTML>
 									<g:HorizontalPanel>
-										<g:VerticalPanel>
-											<g:Anchor text='{constants.hideContentStr}' ui:field="hideContentAnchor" href='#'></g:Anchor>
-										</g:VerticalPanel>
+											<g:VerticalPanel>
+<!--												<g:HTML height='12px'></g:HTML>-->
+												<g:CaptionPanel>
+													<g:Anchor text='{constants.hideContentStr}' ui:field="hideContentAnchor" href='#'></g:Anchor>
+												</g:CaptionPanel>
+												<g:CaptionPanel>
+													<g:Anchor text='{constants.saveContentStr}' ui:field="saveContentAnchor" href='#'></g:Anchor>
+												</g:CaptionPanel>
+											</g:VerticalPanel>
+											<g:VerticalPanel>
+<!--												<g:HTML height='12px'></g:HTML>-->
+												 <g:CaptionPanel>
+													<g:Anchor text='{constants.mailForumLinkStr}' ui:field="forumLinkAnchor" href='#'></g:Anchor>
+												</g:CaptionPanel>
+												<g:CaptionPanel>
+													<g:Anchor text='{constants.installerLinkStr}' ui:field="installerLinkAnchor" href='#'></g:Anchor>
+												</g:CaptionPanel>
+											</g:VerticalPanel>
 									</g:HorizontalPanel>
 								</g:HorizontalPanel>
 							</g:CaptionPanel>
-							<g:CaptionPanel width='{constants.smallerWidthStr}'>
+							<g:CaptionPanel width='{constants.basicWidthStr}' ui:field="contentRichTextAreaCptnPnl">
 								<g:ScrollPanel >
-									<g:RichTextArea width='{constants.smallerWidthStr}'
+									<g:RichTextArea width='{constants.basicWidthStr}'
 									height='420px' ui:field="contentRichTextArea"  stylePrimaryName='{res.globalCSS.whiteRow}'></g:RichTextArea>
 								</g:ScrollPanel>
 							</g:CaptionPanel>
 						</g:VerticalPanel>
 					</g:HorizontalPanel>
-				</g:CaptionPanel>
 				<g:CaptionPanel width='{constants.basicWidthStr}'>
 					<g:HorizontalPanel>
 						<g:HorizontalPanel width='50px'>

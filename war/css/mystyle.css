@@ -1,0 +1,43 @@
+body {
+	background: #c9e2fc;
+}
+
+#chromeclone {
+	border: 5px solid #4585d3;
+	background-color: #A3D1FF;
+	min-height: 800px;
+}
+
+#navbar {
+	background: url(css/img/bar.png) repeat-x;
+	height: 38px;
+	margin-left: 0 !important;
+}
+
+#wave_embed_one {
+	margin: 0 10px 10px 10px;
+}
+
+.wavebody {
+	margin-top: 5px;
+}
+.info {
+	font-size: 10px;
+}
+.waveblip, .wavethread .waveblip {
+	border: 1px solid #bbb;
+	border-radius: 3px;
+	background: url(css/img/anonybot.png) no-repeat left scroll;
+	padding-left: 70px;
+	margin-top: 5px;
+}
+
+.wavethread {
+	padding-left: 24px;
+	background: url(css/img/comment-thread.gif) no-repeat left top scroll;
+}
+
+.waveblip:first-child { background:transparent; padding: 0; border: 0;}
+.wavethread .waveblip:first-child { border: 1px solid #bbb;	border-radius: 3px;	background: url(css/img/anonybot.png) no-repeat left scroll; padding-left: 70px; margin-top: 5px;}
+.waveblip:nth-child(even), .wavethread .waveblip:nth-child(even) { background-color:#c9e2fc; }
+.waveblip:nth-child(odd), .wavethread .waveblip:nth-child(odd) { background-color:transparent; }

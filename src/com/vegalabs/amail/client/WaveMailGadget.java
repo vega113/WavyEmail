@@ -148,7 +148,7 @@ static WaveFeature waveFeature;
 		@Override
 		public GoogleAnalyticsId get() {
 			Log.info("Providing GoogleAnalyticsId");
-			return new GoogleAnalyticsId("UA-13269470-3");
+			return new GoogleAnalyticsId("UA-13269470-6");
 		}
 	}
 	
@@ -157,7 +157,7 @@ static WaveFeature waveFeature;
 		@Override
 		public AppDomainId get() {
 			AppDomainId ad = new AppDomainId();
-			ad.setId("mailwavybeta");
+			ad.setId("wavyemailbeta");
 			Log.info("The applicationId is: " + ad.getId());
 			return ad;
 		}

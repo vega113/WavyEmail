@@ -14,6 +14,13 @@ import com.google.gwt.i18n.client.Constants.DefaultStringValue;
  */
 public interface ConstantsImpl extends Constants {
 
+	String emailSentStr();
+	String sendingEmailStr();
+	String contentSaveSuccess();
+	String installerLinkStr();
+	String mailForumLinkStr();
+	String saveContentStr();
+	String needImportContacts();
 	String unhideContentStr();
 	String hideContentStr();
 	String importCnts();
@@ -35,13 +42,13 @@ public interface ConstantsImpl extends Constants {
 	
 	
 	
-	@DefaultStringValue(value="mailwavybeta")
+	@DefaultStringValue(value="wavyemailbeta")
 	String appDomain();
 	//urls
-	@DefaultStringValue(value="#restored:wave:googlewave.com%252Fw%252BVIL2ZrZkBSb")
-	String discussDigestBottyUrl();
-	@DefaultStringValue(value="#restored:search:group%253Agoogle-wave-extension-gallery-all%2540googlegroups.com,restored:wave:googlewave.com%252Fw%252B0R06HrZkCAQ")
-	String installDigestBottyUrl();
+	@DefaultStringValue(value="#restored:wave:googlewave.com%252Fw%252B1OG6ZLZkByJ")
+	String discussWavyEmailUrl();
+	@DefaultStringValue(value="#restored:wave:googlewave.com%252Fw%252B-va3a8I6C")
+	String installWavyEmailUrl();
 	
 	@DefaultStringValue(value="UA-13269470-3")
 	String trackerUIStr();

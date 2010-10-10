@@ -45,21 +45,24 @@ public class HandleFailedEmailsServlet extends HttpServlet {
 		for(EmailFailedEvent emailFailedEvent : failedEmailsList){
 			report.append("\n");
 			Long personId = emailFailedEvent.getPersonId();
-			PersistenceManager pm = pmf.getPersistenceManager();
-			Person person = pm.getObjectById(Person.class, personId);
 			Long emailEventId = emailFailedEvent.getEmailEventId();
-			EmailEvent emailEvent = pm.getObjectById(EmailEvent.class, emailEventId);
-			String eventReport = "retry for "  + person.getWavemail() + ", Subject: " + emailEvent.getSubject() + ", retryCount: " + emailFailedEvent.getRetryCount();
-			LOG.info(eventReport);
-			report.append(eventReport);
 			if(personId == null || emailEventId == null){
 				emailFailedEvent.setStatus("ABORTED");//TODO send bounce
 				emailFailedEvent.setLastUpdated(new Date());
 				emailFailedEventDao.save(emailFailedEvent);
 			}else{
 				//TODO if retryCount more than limit - declare as bounced
+				PersistenceManager pm = pmf.getPersistenceManager();
+				Person person = pm.getObjectById(Person.class, personId);
+				
+				EmailEvent emailEvent = pm.getObjectById(EmailEvent.class, emailEventId);
+				String eventReport = "retry for "  + person.getWavemail() + ", Subject: " + emailEvent.getSubject() + ", retryCount: " + emailFailedEvent.getRetryCount();
+				LOG.info(eventReport);
+				report.append(eventReport);
 				robot.receiveEmailWithRetry(person, emailEvent, emailFailedEvent);
 			}
+			
+			
 			
 		}
 		

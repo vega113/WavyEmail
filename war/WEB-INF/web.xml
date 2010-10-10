@@ -33,7 +33,7 @@
 
 	<!-- Default page to serve -->
 	<welcome-file-list>
-		<welcome-file>WaveMail.html</welcome-file>
+		<welcome-file>main.html</welcome-file>
 	</welcome-file-list>
 
 </web-app>

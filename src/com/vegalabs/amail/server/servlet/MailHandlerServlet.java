@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -18,13 +19,16 @@ import java.util.logging.Logger;
 import javax.activation.DataHandler;
 import javax.mail.BodyPart;
 import javax.mail.Message.RecipientType;
+import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Multipart;
 import javax.mail.Part;
 import javax.mail.Session; 
+import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage; 
+import javax.mail.internet.MimeMultipart;
 import javax.mail.internet.MimeUtility;
 import javax.servlet.http.*; 
 import javax.xml.soap.MimeHeader;
@@ -65,10 +69,14 @@ public class MailHandlerServlet extends HttpServlet {
 		StringBuilder msgBody = new StringBuilder();
 		
 		List<Attachment> attachmentsList = new ArrayList<Attachment>();
+		
+		String from = null;
+		String subject = null;
+		String failureReason = null;
 		try {
 			InputStream msgInputStream = req.getInputStream();
 			MimeMessage message = new MimeMessage(session, msgInputStream);
-			String subject = message.getSubject();
+			subject = message.getSubject();
 			
 			handleMessage(msgBody, attachmentsList, message);
 			
@@ -77,12 +85,21 @@ public class MailHandlerServlet extends HttpServlet {
 			for(InternetAddress address : recipientsAddresses){
 				recipientsSet.add(address.getAddress());
 			}
+			from = message.getFrom()[0].toString();
+			 long lengthInBytes = robot.calcAttachmentsSize(attachmentsList);
+				if(lengthInBytes + msgBody.toString().getBytes().length > 1024*1024*1024){
+					failureReason = "Message size is too big, maximum size is 1MB!";
+					MailUtils.sendDeliveryFailedMail(from,subject,failureReason);
+					throw new IllegalArgumentException(failureReason);
+				}
 			
 			String msgBodyStr = msgBody.toString();
 			robot.recieveMail( msgBodyStr , subject,recipientsSet, message.getFrom()[0].toString(),attachmentsList, message.getSentDate());
 			
 			LOG.info(String.format("New email from %s with content %s", message.getFrom()[0].toString(), msgBody.toString()));
 		} catch (MessagingException e) {
+			failureReason = e.getMessage();
+			MailUtils.sendDeliveryFailedMail(from,subject,failureReason);
 			LOG.log(Level.SEVERE, "exception!", e);
 		}catch (Exception e) {
 			LOG.log(Level.SEVERE, "exception!", e);

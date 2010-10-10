@@ -49,7 +49,7 @@ public class ServiceImpl implements IService {
 
 	@Override
 	public void sendEmail(String recipients, String subject, String msgBody,
-			String sender, String senderName, int activityType, String waveId,String blipId, String iconUrl,
+			String sender, String senderName, int activityType, String waveId,String blipId, String uuid,String iconUrl,
 			AsyncCallback<JSONValue> asyncCallback) throws RequestException {
 		com.google.gwt.json.client.JSONObject paramsJson = new JSONObject();
 		com.google.gwt.json.client.JSONObject postDataJson = new JSONObject();
@@ -62,6 +62,7 @@ public class ServiceImpl implements IService {
 		paramsJson.put("activityType", new JSONString(String.valueOf(activityType)));
 		paramsJson.put("waveId", new JSONString(String.valueOf(waveId)));
 		paramsJson.put("blipId", new JSONString(String.valueOf(blipId)));
+		paramsJson.put("uuid", new JSONString(String.valueOf(uuid)));
 		paramsJson.put("iconUrl", new JSONString(String.valueOf(iconUrl)));
 		
 		postDataJson.put("params", paramsJson);

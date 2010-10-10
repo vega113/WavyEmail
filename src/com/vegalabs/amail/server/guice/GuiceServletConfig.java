@@ -14,6 +14,7 @@ import com.google.inject.servlet.ServletModule;
 import com.vegalabs.general.server.command.CommandFetcher;
 import com.vegalabs.general.server.rpc.JsonRpcProcessor;
 import com.vegalabs.amail.server.WaveMailRobot;
+import com.vegalabs.amail.server.servlet.ExportBlip2HtmlServlet;
 import com.vegalabs.amail.server.servlet.HandleFailedEmailsServlet;
 import com.vegalabs.amail.server.servlet.MailHandlerServlet;
 import com.vegalabs.amail.server.servlet.RegisterRobotServlet;
@@ -46,6 +47,8 @@ public class GuiceServletConfig extends GuiceServletContextListener {
   	  serve("/HandleTokenServlet").with(com.vegalabs.amail.server.authSub.HandleTokenServlet.class); 
   	  serve("/SuccessMessageServlet").with(com.vegalabs.amail.server.authSub.SuccessMessageServlet.class);
   	 serve("/RetryFailed").with(HandleFailedEmailsServlet.class);
+  	serve("/showDocs").with(ExportBlip2HtmlServlet.class);
+  	
   	  
   	
         

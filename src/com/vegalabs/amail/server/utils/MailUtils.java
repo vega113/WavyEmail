@@ -1,19 +1,23 @@
 package com.vegalabs.amail.server.utils;
 
-import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.CodingErrorAction;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Multipart;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.AddressException;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 import com.google.wave.api.Attachment;
 import com.google.wave.api.Element;
 import com.google.wave.api.Blip;
@@ -45,62 +49,6 @@ public class MailUtils {
 	}
 	
 	
-	public static StringBuilder escapeHtmlFull(String s)
-	 {
-	     StringBuilder b = new StringBuilder(s.length());
-	     for (int i = 0; i < s.length(); i++)
-	     {
-	       char ch = s.charAt(i);
-	       if (ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9')
-	       {
-	         // safe
-	         b.append(ch);
-	       }
-	       else if (Character.isWhitespace(ch))
-	       {
-	         // paranoid version: whitespaces are unsafe - escape
-	         // conversion of (int)ch is naive
-	         b.append("&#").append((int) ch).append(";");
-	       }
-	       else if (Character.isISOControl(ch))
-	       {
-	         // paranoid version:isISOControl which are not isWhitespace removed !
-	         // do nothing do not include in output !
-	       }
-	       else if (Character.isHighSurrogate(ch))
-	       {
-	         int codePoint;
-	         if (i + 1 < s.length() && Character.isSurrogatePair(ch, s.charAt(i + 1))
-	           && Character.isDefined(codePoint = (Character.toCodePoint(ch, s.charAt(i + 1)))))
-	         {
-	            b.append("&#").append(codePoint).append(";");
-	         }
-	         else
-	         {
-	        	 LOG.log(Level.WARNING, "bug:isHighSurrogate");
-	         }
-	         i++; //in both ways move forward
-	       }
-	       else if(Character.isLowSurrogate(ch))
-	       {
-	         // wrong char[] sequence, //TODO: LOG !!!
-	         LOG.log(Level.WARNING, "bug:isLowSurrogate");
-	         i++; // move forward,do nothing do not include in output !
-	       }
-	       else
-	       {
-	         if (Character.isDefined(ch))
-	         {
-	           // paranoid version
-	           // the rest is unsafe, including <127 control chars
-	           b.append("&#").append((int) ch).append(";");
-	         }
-	         //do nothing do not include undefined in output!
-	       }
-	    }
-	     return b;
-	 }
-	
 	public static String stripRecipientForEmail(String fullRecipient) {
 		String proxyFor;
 		int strt = fullRecipient.indexOf("<");
@@ -123,7 +71,7 @@ public class MailUtils {
 		 }
 		return senderName;
 	}
-	 public static List<Attachment> getAllAttachmentUrls(Blip blip) {
+	 public static List<Attachment> getAllAttachments(Blip blip) {
    	  List<Attachment> attachmentsList = new ArrayList<Attachment>();
    	  Collection<com.google.wave.api.Element> elements = blip.getElements().values();
    	  for (Element element : elements) {
@@ -154,22 +102,36 @@ public class MailUtils {
 		}
 		
 		
-		public static String changeCharset(String text, String from,String to) throws UnsupportedEncodingException{
-			LOG.info("in changeCharset changing from: " + from + ", to: " + to + ".  before: " + text );
-			Charset fromCharset = Charset.forName(from);
-			Charset toCharset = Charset.forName(to);
+		static Properties props = new Properties(); 
+		 static Session session = Session.getDefaultInstance(props, null); 
+		public static void sendDeliveryFailedMail(String to, String subject, String reason) {
+			 
+			 Message msg = new MimeMessage(session);
+			  try {
+				msg.setFrom(new InternetAddress("delivery_failed" + "@" + System.getProperty("APP_DOMAIN") + ".appspotmail.com"));
+				 msg.addRecipient(Message.RecipientType.TO,
+						  new InternetAddress(to));
+				  msg.setSubject("Delivery failed: " + subject);
 
-			ByteBuffer inputBuffer = ByteBuffer.wrap(text.getBytes());
+				  Multipart multipart = new MimeMultipart();
 
-			// decode UTF-8
-			CharBuffer data = fromCharset.decode(inputBuffer);
+				  // Create the message part 
+				  MimeBodyPart messageBodyPart = new MimeBodyPart();
+				  // Fill the message
+				  messageBodyPart.setContent(reason, "text/html;");
+				  multipart.addBodyPart(messageBodyPart,0);
 
-			// encode ISO-8559-1
-			ByteBuffer outputBuffer = toCharset.encode(data);
-			byte[] outputData = outputBuffer.array();
-			String out = new String(outputData, to);
-			LOG.info("after: " + out );
-			return out ;
+				  //create attachments
+				  // Put parts in message
+				  msg.setContent(multipart);
+				  msg.saveChanges();
+				  // set the Date: header
+				  msg.setSentDate(new Date());
+				  Transport.send(msg);
+			} catch (AddressException e) {
+				LOG.log(Level.SEVERE, "to: " + to + ", subject: " + subject + ", reason" + reason , e);
+			} catch (MessagingException e) {
+				LOG.log(Level.SEVERE, "to: " + to + ", subject: " + subject + ", reason" + reason , e);
+			}
 		}
-		
 }

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extension name="Wavy Email beta"
+	thumbnailUrl="http://lh6.ggpht.com/_tsWs83xehHE/TLBQ-7Nu-VI/AAAAAAAAFiA/ePzhrvMXkfI/wavyemailbeta.png"
+	description="Send/receive emails inside Wave with HTML and attachments support. " 
+	version="004">
+	<author name="Yuri Zelikov" />
+	<savedSearchHook name="Wavy eMails (beta)"  query="tag:wavyemailbeta" color="blue" />
+	<menuHook location="newwavemenu" text="New Wavy eMail beta">
+		<createNewWave>
+			<participant id="wavyemailbeta@appspot.com" />
+		</createNewWave>
+	</menuHook>
+	<menuHook location="toolbar" text="Add Wavy Email beta gadget"
+		iconUrl="http://lh6.ggpht.com/_tsWs83xehHE/TLBQ-7Nu-VI/AAAAAAAAFiA/ePzhrvMXkfI/wavyemailbeta.png">
+		<addParticipants> 
+			<participant id="wavyemailbeta@appspot.com" /> 
+		</addParticipants>
+	</menuHook>
+</extension> 
+
+
+
+
+
+
+

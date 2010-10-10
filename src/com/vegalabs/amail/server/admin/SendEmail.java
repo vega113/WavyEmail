@@ -21,11 +21,13 @@ import com.google.appengine.api.datastore.Text;
 import com.google.inject.Inject;
 import com.google.wave.api.Attachment;
 import com.google.wave.api.Blip;
+import com.google.wave.api.Element;
 import com.google.wave.api.Wavelet;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import javax.activation.DataHandler;
 import javax.mail.Message;
@@ -90,10 +92,12 @@ public class SendEmail extends Command {
       throw new IllegalArgumentException("Missing required param: waveId");
     }
     
-    String blipId = this.getParam("blipId");
-    if (util.isNullOrEmpty(blipId)) {
-      throw new IllegalArgumentException("Missing required param: blipId");
+    String uuid = this.getParam("uuid");
+    if (util.isNullOrEmpty(uuid)) {
+      throw new IllegalArgumentException("Missing required param: uuid");
     }
+    
+    String blipId = this.getParam("blipId");
     if(blipId.equals("none")){
     	blipId = null;
     }
@@ -130,10 +134,23 @@ public class SendEmail extends Command {
 //    check if there are attachments in the blip
     Blip blip = null;
     if(blipId == null){
+    	//find the blip
+    	//iterate of blips and try to find the gadget
+    	blipId = findBlipIdByGadgetUuid(uuid, wavelet);
+    	LOG.warning("Cannot find blip for uuid: " + uuid);
+    }
+    if(blipId == null){
     	blipId = wavelet.getRootBlipId();
     }
     blip = wavelet.getBlip(blipId);
-	
+    
+    
+    List<Attachment>  attachments = MailUtils.getAllAttachments(blip);
+    
+    long lengthInBytes = robot.calcAttachmentsSize(attachments);
+	if(lengthInBytes + msgBody.getBytes().length > 1024*1024*1024){
+		throw new IllegalArgumentException("Message size is too big, maximum size is 1MB!");
+	}
 
     List<String> fromList = new ArrayList<String>();
     fromList.add(sender);
@@ -153,7 +170,7 @@ public class SendEmail extends Command {
     person.setUpdated(new Date());
     personDao.save(person);
     
-    String activityTypeStr = robot.updateOnEmailSent(wavelet,blipId,activityType,recipients,subject);
+    String activityTypeStr = robot.updateWaveletOnEmailSent(wavelet,activityType,recipients,subject);
     
 //    String contacts = robot.retrContacts4User(person);
 //    HashMap<String,String> contactsUpdateMap = new HashMap<String, String>();
@@ -168,7 +185,7 @@ public class SendEmail extends Command {
 		// in most cases it will be submitted later
 	}
 	
-	 List<Attachment>  attachments = MailUtils.getAllAttachmentUrls(blip);
+	
 
     EmailEvent emailEvent = new EmailEvent(activityTypeStr, subject, new Text(msgBody), fromList, toList, sender, sentDate, attachments);
     String fullWaveId = waveId.split("!")[0] + "#" + waveId.split("!")[1] + "#" + blipId;
@@ -196,6 +213,23 @@ public class SendEmail extends Command {
     return json;
   }
 
+
+private String findBlipIdByGadgetUuid(String uuid, Wavelet wavelet) {
+	Map<String,Blip> blipsMap =  wavelet.getBlips();
+	for(String key : blipsMap.keySet()){
+		Blip currentBlip = blipsMap.get(key);
+		Map<Integer,Element> currentBlipElementsMap =  currentBlip.getElements();
+		for(Integer elemKey : currentBlipElementsMap.keySet()){
+			Element currElement = currentBlipElementsMap.get(elemKey);
+			String elemUuid = currElement.getProperty("uuid");
+			if(uuid.equals(elemUuid)){
+				return currentBlip.getBlipId();
+			}
+		}
+	}
+	return null;
+}
+
   //no retry yet
   public static void deliverEmailWithRetry(Person person, EmailEvent emailEvent) {
 	  Properties props = new Properties();
@@ -210,21 +244,32 @@ public class SendEmail extends Command {
 			  }
 		  }
 		  msg.setSubject(emailEvent.getSubject());
-
-
+		  
+		  
 		  Multipart multipart = new MimeMultipart();
+		  
+		// Create the message part 
+		  MimeBodyPart messageBodyTxtPart = new MimeBodyPart();
+		  // Fill the message
+		  messageBodyTxtPart.setContent(emailEvent.getMsgBody().getValue(), "text/plain;");
+		  multipart.addBodyPart(messageBodyTxtPart);
+
+
+		  
 
 		  // Create the message part 
 		  MimeBodyPart messageBodyPart = new MimeBodyPart();
 		  // Fill the message
 		  messageBodyPart.setContent(emailEvent.getMsgBody().getValue(), "text/html;");
-		  multipart.addBodyPart(messageBodyPart,0);
+		  multipart.addBodyPart(messageBodyPart);
+		  
+		  
 
 		  //create attachments
 		  LOG.info("Activity type: " + emailEvent.getActivityType());
 		  if(emailEvent.getActivityType().equals("FORWARD") || emailEvent.getActivityType().equals("NEW")) {
 			  // Part two is attachment
-			  waveAttachment2Mpart(emailEvent.getAttachments(), multipart, 1);
+			  waveAttachment2Mpart(emailEvent.getAttachments(), multipart);
 		  }
 
 
@@ -250,8 +295,8 @@ public class SendEmail extends Command {
 	  }
   }
 
-	public static int waveAttachment2Mpart(List<Attachment> attachments,
-			Multipart multipart, int partNum) throws MessagingException {
+	public static void waveAttachment2Mpart(List<Attachment> attachments,
+			Multipart multipart) throws MessagingException {
 		for(Attachment attachment : attachments){
 			String filename = attachment.getCaption();
 			String mimeTmp = attachment.getMimeType().endsWith(";") ? attachment.getMimeType() : attachment.getMimeType() + ";";
@@ -296,10 +341,8 @@ public class SendEmail extends Command {
 			attachmentBodyPart.setFileName(filename);
 			attachmentBodyPart.setDisposition(Part.ATTACHMENT);
 			LOG.info("real content type: " + attachmentBodyPart.getContentType() + ", isDisposition: " + (attachmentBodyPart.getDisposition() != null) + ", ds.contentType: " + ds.getContentType());
-			multipart.addBodyPart(attachmentBodyPart,partNum);
-			partNum++;
+			multipart.addBodyPart(attachmentBodyPart);
 		}
-		return partNum;
 	}
 
 

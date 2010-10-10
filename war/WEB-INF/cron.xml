@@ -2,7 +2,7 @@
 <cronentries>
   <cron>
     <url>/RetryFailed</url>
-    <description>attempt to deliver into wave failed emails</description>
+    <description>Attempt the retry to deliver failed emails into wave</description>
     <schedule>every 2 minutes</schedule>
   </cron>
 </cronentries>

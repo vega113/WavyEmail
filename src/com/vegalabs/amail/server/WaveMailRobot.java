@@ -205,18 +205,11 @@ public static final String GADGET_URL = "http://" + System.getProperty("APP_DOMA
 	  String proxyFor = event.getBundle().getProxyingFor();
 	  LOG.log(Level.INFO, "onWaveletSelfAdded proxyFor: " + proxyFor + ", wave title: " + event.getWavelet().getTitle() + ", waveId: " + event.getWavelet().getWaveId().toString());
 
-	 Wavelet wavelet = event.getWavelet();
-	  wavelet.setTitle("Create email [" + System.getProperty("APP_DOMAIN") + "]");
+	  updateWaveletOnEmailSent(event.getWavelet(),-1, "", "");//just tag as email
+	  Wavelet wavelet = event.getWavelet();
+	  wavelet.setTitle("Create Wavy eMail [" + System.getProperty("APP_DOMAIN") + "]");
 	  LOG.info("Modified by: " + event.getModifiedBy());
-//	  String contacts = retrContacts4User(MailUtils.waveId2mailId(event.getModifiedBy()));
-//	    HashMap<String,String> contactsUpdateMap = new HashMap<String, String>();
-	    Blip blip = wavelet.getRootBlip();
-	    List<BundledAnnotation> baList = BundledAnnotation.listOf("style/fontSize", "8pt");
-	    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - please attach the file/s below: (please note to set appropriate file extensions, i.e. myimage.jpg)\n");
-//	    contactsUpdateMap.put("contacts", contacts);
-//	    updateGadgetState(event.getBlip(), WaveMailRobot.GADGET_URL, contactsUpdateMap);
-	  
-	
+	  appendMailGadget(event.getBlip(), event.getBlip().getBlipId(), "", "", "", "", event.getModifiedBy(),"", "NEW");
   }
 
 		
@@ -402,7 +395,7 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 		  blip = threadWavelet.getRootBlip(); 
 		  blipId = threadWavelet.getRootBlipId();
 		  newBlipFullAddress = new FullWaveAddress(threadWavelet.getWaveId().getDomain(), threadWavelet.getWaveId().getId(), blip.getBlipId());
-		  appendMailGadget(blip,blipId,content,subject,fromFullEmail,waveMailAddressRecipient,waveAddressRecipient, allRecipients );
+		  appendMailGadget(blip,blipId,content,subject,fromFullEmail,waveMailAddressRecipient,waveAddressRecipient, allRecipients,"READ" );
 		  
 	  }else{
 		  blip = threadWavelet.getBlip(threadBlipAddress.getBlipId()).continueThread();
@@ -419,7 +412,7 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 				  break;
 			  }
 		  }
-		  appendMailGadget(blip,blipId,content,subject,fromFullEmail,waveMailAddressRecipient,waveAddressRecipient, allRecipients );
+		  appendMailGadget(blip,blipId,content,subject,fromFullEmail,waveMailAddressRecipient,waveAddressRecipient, allRecipients ,"READ" );
 		  newBlipFullAddress = new FullWaveAddress(threadWavelet.getWaveId().getDomain(), threadWavelet.getWaveId().getId(), blipId);
 	  }
 	  updateOnMailReceive(threadWavelet, ActivityType.RECEIVE, subject, fromMailStripped);
@@ -621,11 +614,14 @@ public static String filterNonUtf8(String inString) {
 	
  
  
- private void appendMailGadget(Blip blip, String blipId,String msgBody, String subject, String from, String to,String waveUserId, String toAll) {
+ private void appendMailGadget(Blip blip, String blipId,String msgBody, String subject, String from, String to,String waveUserId, String toAll, String mode) {
 		LOG.info("appendMailGadget:  blipId: " + blipId + ", subject: " + subject);
 		//check if blip already contains the add gadget. 
 		Gadget gadget = extractGadgetFromBlip(GADGET_URL,blip);
 		if(gadget == null){
+			if(to == null || "".equals(to)){
+				to = MailUtils.waveId2mailId(waveUserId);
+			}
 			String contacts = retrContacts4User(to);
 			
 			gadget = new Gadget(GADGET_URL);
@@ -638,13 +634,21 @@ public static String filterNonUtf8(String inString) {
 		    out.put("from", from);
 		    out.put("toAll", toAll);
 		    out.put("to", to);
+		    out.put("1", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");//to hide the contacts from Gwave client - it displays them after wave title
+		    out.put("a", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 		    out.put("contacts#" + waveUserId, contacts);
 		    encode(out);
-		    out.put("1", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-		    out.put("mode", "READ");
+		    
+		    out.put("mode", mode);
 		    updateGadgetState(blip, GADGET_URL, out);
 		    List<BundledAnnotation> baList = BundledAnnotation.listOf("style/fontSize", "8pt");
-		    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - please attach the file/s below: (please note to set appropriate file extensions, i.e. myimage.jpg)\n");
+		    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - please attach the file/s below: (please note to set appropriate file extensions, i.e. myimage.jpg)." + 
+		    		"\nAlso note - maximum email size is 1MB due to Google AppEngine restrictions." + 
+		    		" You can check ");
+		    List<BundledAnnotation> baList1 = BundledAnnotation.listOf("style/fontSize", "8pt", "link/manual", "http://code.google.com/appengine/docs/python/mail/overview.html#Attachments");
+		    blip.at(blip.getContent().length()).insert(baList1,"here");
+		    blip.at(blip.getContent().length()).insert(baList," list of attachment types that are allowed by AppEngine\n");
+		    
 		}
 		
 	}
@@ -697,6 +701,9 @@ public static String filterNonUtf8(String inString) {
 	public String retrContacts4User(String to) {
 		//load contacts
 		Person person = personDao.getPerson(MailUtils.stripRecipientForEmail(to));
+		if(person == null){
+			LOG.warning("No person for wavemail: " + to);
+		}
 		StringBuilder contactsSb = concatinateContacts(person);
 		return contactsSb.toString();
 	}
@@ -705,12 +712,14 @@ public static String filterNonUtf8(String inString) {
 
 	public StringBuilder concatinateContacts(Person person) {
 		StringBuilder contactsSb = new StringBuilder();
-		for(String key : person.getContacts().keySet()){
-			String value = person.getContacts().get(key);
-			if(!value.equals(key)){
-				contactsSb.append(value + "#" + key + "#");
-			}else{
-				contactsSb.append(value + "#");
+		if(person != null && person.getContacts() != null){
+			for(String key : person.getContacts().keySet()){
+				String value = person.getContacts().get(key);
+				if(!value.equals(key)){
+					contactsSb.append(value + "#" + key + "#");
+				}else{
+					contactsSb.append(value + "#");
+				}
 			}
 		}
 		return contactsSb;
@@ -813,7 +822,7 @@ public String makeBackStr(String forumName) {
 
   @Override
   public String getRobotName() {
-	  String baseName = "MailWavy beta";
+	  String baseName = "Wavy eMail beta";
 	  LOG.info("in getRobotName name: " + baseName);
     return baseName;
   }
@@ -830,7 +839,6 @@ public String makeBackStr(String forumName) {
 			  Gravatar gravatar = new Gravatar();
 			  String email = switch2email(name);
 			  if(email != null){
-				 
 				  updateProfileWithGravatar(email,((SeriallizableParticipantProfile)o));
 				  profile = ((SeriallizableParticipantProfile)o).getProfile();
 			  }
@@ -1087,7 +1095,7 @@ protected String[] createGadgetUrlsArr() {
 		
 	}
 	
-	public String updateOnEmailSent(Wavelet wavelet,String blipId, int activityType, String recipients, String subject) {
+	public String updateWaveletOnEmailSent(Wavelet wavelet, int activityType, String recipients, String subject) {
 		
 		subject = filterNonISO(subject);
 		String appdomain = System.getProperty("APP_DOMAIN");
@@ -1107,6 +1115,10 @@ protected String[] createGadgetUrlsArr() {
 		//if is reply add "replyto:<email>"  update "email.recieved.replied.no" -> "email.recieved.replied.<email>"
 		if(activityType == ActivityType.REPLY){
 			activityTypeStr = "REPLY";
+			
+			if(tags.contains("email.activity=draft"))
+				tags.remove("email.activity=draft");
+			
 			//indicate that email was replied
 			if(!tags.contains("email.activity=reply"))
 				tags.add("email.activity=reply");
@@ -1127,6 +1139,10 @@ protected String[] createGadgetUrlsArr() {
 		//		email.sent
 		else if(activityType == ActivityType.NEW){
 			activityTypeStr = "NEW";
+			
+			if(tags.contains("email.activity=draft"))
+				tags.remove("email.activity=draft");
+			
 			if(!tags.contains("email.activity=new"))
 				tags.add("email.activity=new");
 			for(String recipient : recArr){
@@ -1141,6 +1157,10 @@ protected String[] createGadgetUrlsArr() {
 
 		}else if(activityType == ActivityType.FORWARD){
 			activityTypeStr = "FORWARD";
+			
+			if(tags.contains("email.activity=draft"))
+				tags.remove("email.activity=draft");
+			
 			if(!tags.contains("email.activity=forward"))
 				tags.add("email.activity=forward");
 			for(String recipient : recArr){
@@ -1153,6 +1173,10 @@ protected String[] createGadgetUrlsArr() {
 				tags.add(forwardedWhenStr);
 			
 			wavelet.setTitle( subject + " [" + detailedFormat.format(today) + " ] ");
+		}else if(activityType == ActivityType.DRAFT){
+			activityTypeStr = "DRAFT";
+			if(!tags.contains("email.activity=draft"))
+				tags.add("email.activity=draft");
 		}
 		
 		 return activityTypeStr;
@@ -1224,5 +1248,11 @@ protected String[] createGadgetUrlsArr() {
 		 return profile;
 	}
 	
-	
+	public long calcAttachmentsSize(List<Attachment> attachments) {
+		long totalSize = 0;
+		for(Attachment attachment : attachments){
+			totalSize += attachment.getData().length;
+		}
+		return totalSize;
+	}
 }
