@@ -84,7 +84,7 @@ public class LoadContactsAndContent extends Command{
 	    String msgBody = emailEvent.getMsgBody().getValue();
 	    String subject = emailEvent.getSubject();
 	    String from = emailEvent.getFrom().get(0);
-	    String toAll = robot.buildAllRecipients(emailEvent.getTo()).toString();;
+	    String toAll = robot.buildAllRecipients(emailEvent.getTo(),"To:").toString();; 
 	    String to = person.getWavemail();
 	    
 	    

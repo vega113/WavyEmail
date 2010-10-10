@@ -101,7 +101,7 @@ public class SendEmail extends Command {
     if(blipId.equals("none")){
     	blipId = null;
     }
-    LOG.info("blipId: " + blipId);
+    LOG.fine("blipId: " + blipId);
     String senderName = this.getParam("senderName");
     senderName = robot.decode(senderName);
     
@@ -157,6 +157,7 @@ public class SendEmail extends Command {
     List<String> toList = new ArrayList<String>();
 
     for(String recipient : recipients.split(",")){
+    	recipient = recipient.replace("[", "").replaceAll("]", "").replace("To:", "");
     	toList.add(recipient);
     	String onlyMail = MailUtils.stripRecipientForEmail(recipient);
     	String onlyName = MailUtils.stripRecipientForName(recipient);
@@ -172,12 +173,6 @@ public class SendEmail extends Command {
     
     String activityTypeStr = robot.updateWaveletOnEmailSent(wavelet,activityType,recipients,subject);
     
-//    String contacts = robot.retrContacts4User(person);
-//    HashMap<String,String> contactsUpdateMap = new HashMap<String, String>();
-//    contactsUpdateMap.put("contacts", contacts);
-//    robot.updateGadgetState(blip, WaveMailRobot.GADGET_URL, contactsUpdateMap);
-    //XXX - turn on later
-    
     try {
 		robot.submit(wavelet, robot.getRpcServerUrl());
 	} catch (IOException e) {
@@ -187,7 +182,7 @@ public class SendEmail extends Command {
 	
 	
 
-    EmailEvent emailEvent = new EmailEvent(activityTypeStr, subject, new Text(msgBody), fromList, toList, sender, sentDate, attachments);
+    EmailEvent emailEvent = new EmailEvent(activityTypeStr, subject, new Text(msgBody), fromList, toList, new ArrayList<String>(), sender, sentDate, attachments);
     String fullWaveId = waveId.split("!")[0] + "#" + waveId.split("!")[1] + "#" + blipId;
     emailEvent.getFullWaveIdPerUserMap().put(sender, fullWaveId);
     emailEventDao.save(emailEvent);
@@ -301,7 +296,7 @@ private String findBlipIdByGadgetUuid(String uuid, Wavelet wavelet) {
 			String filename = attachment.getCaption();
 			String mimeTmp = attachment.getMimeType().endsWith(";") ? attachment.getMimeType() : attachment.getMimeType() + ";";
 			byte[] data = attachment.getData();
-			LOG.info("Attachmnet name: " + filename + ", data length: " + data.length + ", mime: " + mimeTmp);
+			LOG.fine("Attachmnet name: " + filename + ", data length: " + data.length + ", mime: " + mimeTmp);
 			if(filename.endsWith(".ico")){
 				filename.replace(".ico", ".png");
 				mimeTmp = "image/png;";
@@ -340,7 +335,7 @@ private String findBlipIdByGadgetUuid(String uuid, Wavelet wavelet) {
 			attachmentBodyPart.setDataHandler(dh);
 			attachmentBodyPart.setFileName(filename);
 			attachmentBodyPart.setDisposition(Part.ATTACHMENT);
-			LOG.info("real content type: " + attachmentBodyPart.getContentType() + ", isDisposition: " + (attachmentBodyPart.getDisposition() != null) + ", ds.contentType: " + ds.getContentType());
+			LOG.fine("real content type: " + attachmentBodyPart.getContentType() + ", isDisposition: " + (attachmentBodyPart.getDisposition() != null) + ", ds.contentType: " + ds.getContentType());
 			multipart.addBodyPart(attachmentBodyPart);
 		}
 	}

@@ -76,7 +76,7 @@ public class MailForm extends Composite {
 	SuggestBox suggestCntBox;
 	
 	@UiField
-	Button registerBtn;
+	Button importContactsBtn;
 	
 	
 	String concatinatedContacts = null;
@@ -309,10 +309,13 @@ public class MailForm extends Composite {
 		Timer mailPnlTimer = new Timer() {
 			@Override
 			public void run() {
-				HashMap<String,String> delta = new HashMap<String, String>();
-				String uuid = UUIDUtil.genUUID();
-				delta.put("uuid",uuid);
-				utils.putToState(delta);
+				String uuid = utils.retrFromState("uuid");
+				if(uuid == null){
+					uuid = UUIDUtil.genUUID();
+					HashMap<String,String> delta = new HashMap<String, String>();
+					delta.put("uuid",uuid);
+					utils.putToState(delta);
+				}
 
 				String contactsKey = "contacts#" + utils.retrUserId();
 				String contactsFromState = utils.retrFromState(contactsKey);
@@ -351,13 +354,15 @@ public class MailForm extends Composite {
 		});
 		
 		
-		registerBtn.addClickHandler(new ClickHandler() {
+		importContactsBtn.addClickHandler(new ClickHandler() {
 			
 			@Override
 			public void onClick(ClickEvent event) {
 				Window.open("http://" + constants.appDomain() + ".appspot.com/LoginServlet?user=" + utils.retrUserId(), "", "");
 //				Window.open("http://localhost:8888/LoginServlet?user=" + utils.retrHostId(), "", "");
-//				utils.putToState("contacts",null);
+				utils.putToState("contacts#" + utils.retrUserId(),null );
+				concatinatedContacts = null;
+				
 			}
 		});
 	}

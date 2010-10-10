@@ -60,22 +60,23 @@
 								<g:HorizontalPanel>
 									<g:SimplePanel ui:field="richTextToolbarPanel"></g:SimplePanel>
 									<g:HorizontalPanel>
+											<g:HTML width="10px"></g:HTML>
 											<g:VerticalPanel>
 <!--												<g:HTML height='12px'></g:HTML>-->
-												<g:CaptionPanel>
-													<g:Anchor text='{constants.hideContentStr}' ui:field="hideContentAnchor" href='#'></g:Anchor>
+												<g:CaptionPanel stylePrimaryName='{res.globalCSS.regularRow}'>
+													<g:Anchor text='{constants.hideContentStr}' ui:field="hideContentAnchor" href='#' stylePrimaryName='{res.globalCSS.whiteFont}'></g:Anchor>
 												</g:CaptionPanel>
-												<g:CaptionPanel>
-													<g:Anchor text='{constants.saveContentStr}' ui:field="saveContentAnchor" href='#'></g:Anchor>
+												<g:CaptionPanel stylePrimaryName='{res.globalCSS.regularRow}'>
+													<g:Anchor text='{constants.saveContentStr}' ui:field="saveContentAnchor" href='#' stylePrimaryName='{res.globalCSS.whiteFont}'></g:Anchor>
 												</g:CaptionPanel>
 											</g:VerticalPanel>
 											<g:VerticalPanel>
 <!--												<g:HTML height='12px'></g:HTML>-->
-												 <g:CaptionPanel>
-													<g:Anchor text='{constants.mailForumLinkStr}' ui:field="forumLinkAnchor" href='#'></g:Anchor>
+												 <g:CaptionPanel stylePrimaryName='{res.globalCSS.regularRow}'>
+													<g:Anchor text='{constants.mailForumLinkStr}' ui:field="forumLinkAnchor" href='#' stylePrimaryName='{res.globalCSS.whiteFont}'></g:Anchor>
 												</g:CaptionPanel>
-												<g:CaptionPanel>
-													<g:Anchor text='{constants.installerLinkStr}' ui:field="installerLinkAnchor" href='#'></g:Anchor>
+												<g:CaptionPanel stylePrimaryName='{res.globalCSS.regularRow}'>
+													<g:Anchor text='{constants.installerLinkStr}' ui:field="installerLinkAnchor" href='#' stylePrimaryName='{res.globalCSS.whiteFont}'></g:Anchor>
 												</g:CaptionPanel>
 											</g:VerticalPanel>
 									</g:HorizontalPanel>
@@ -94,7 +95,7 @@
 						<g:HorizontalPanel width='50px'>
 							<!-- <g:PushButton text='import contacts'></g:PushButton> -->
 							<g:cell horizontalAlignment="ALIGN_CENTER">
-									<g:Button text='{constants.importCnts}' ui:field="registerBtn"></g:Button>
+									<g:Button text='{constants.importCnts}' ui:field="importContactsBtn"></g:Button>
 								</g:cell>
 						</g:HorizontalPanel>
 						<g:HTML width='445px'></g:HTML>

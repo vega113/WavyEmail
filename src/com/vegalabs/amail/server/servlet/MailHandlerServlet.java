@@ -65,6 +65,12 @@ public class MailHandlerServlet extends HttpServlet {
 	public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException { 
 		LOG.info("MailHandlerServlet");
 		
+		
+		
+		String requestURI = req.getRequestURI();
+		LOG.info("requestURI: " + requestURI);
+		String realRecipient = requestURI.substring("/_ah/mail/".length());
+		
 		PrintWriter writer = resp.getWriter();
 		StringBuilder msgBody = new StringBuilder();
 		
@@ -78,13 +84,30 @@ public class MailHandlerServlet extends HttpServlet {
 			MimeMessage message = new MimeMessage(session, msgInputStream);
 			subject = message.getSubject();
 			
-			handleMessage(msgBody, attachmentsList, message);
+			
 			
 			InternetAddress[] recipientsAddresses = (InternetAddress[])message.getRecipients (RecipientType.TO);
 			Set<String> recipientsSet = new LinkedHashSet<String>();
-			for(InternetAddress address : recipientsAddresses){
-				recipientsSet.add(address.getAddress());
+			if(recipientsAddresses != null){
+				for(InternetAddress address : recipientsAddresses){
+					recipientsSet.add(address.getAddress());
+				}
 			}
+			Set<String> ccSet = new LinkedHashSet<String>();
+			recipientsAddresses = (InternetAddress[])message.getRecipients (RecipientType.CC);
+			if(recipientsAddresses != null){
+				for(InternetAddress address : recipientsAddresses){
+					ccSet.add(address.getAddress());
+				}
+			}
+			recipientsAddresses = (InternetAddress[])message.getRecipients (RecipientType.BCC);
+			Set<String> bccSet = new LinkedHashSet<String>();
+			if(recipientsAddresses != null){
+				for(InternetAddress address : recipientsAddresses){
+					bccSet.add(address.getAddress());
+				}
+			}
+			
 			from = message.getFrom()[0].toString();
 			 long lengthInBytes = robot.calcAttachmentsSize(attachmentsList);
 				if(lengthInBytes + msgBody.toString().getBytes().length > 1024*1024*1024){
@@ -92,11 +115,12 @@ public class MailHandlerServlet extends HttpServlet {
 					MailUtils.sendDeliveryFailedMail(from,subject,failureReason);
 					throw new IllegalArgumentException(failureReason);
 				}
+				
+				handleMessage(msgBody, attachmentsList, message);
 			
 			String msgBodyStr = msgBody.toString();
-			robot.recieveMail( msgBodyStr , subject,recipientsSet, message.getFrom()[0].toString(),attachmentsList, message.getSentDate());
+			robot.recieveMail( msgBodyStr , subject,realRecipient,recipientsSet, ccSet, bccSet, message.getFrom()[0].toString(),attachmentsList, message.getSentDate());
 			
-			LOG.info(String.format("New email from %s with content %s", message.getFrom()[0].toString(), msgBody.toString()));
 		} catch (MessagingException e) {
 			failureReason = e.getMessage();
 			MailUtils.sendDeliveryFailedMail(from,subject,failureReason);
@@ -114,7 +138,7 @@ public class MailHandlerServlet extends HttpServlet {
 		String msgContentType = message.getContentType();
 		LOG.info("msgContentType: " + msgContentType);
 		if(msgContentType.contains("text")){
-			msgBody.append(message.getContent().toString());
+			msgBody.append(getContent(message.getRawInputStream(),message.getContentType(), message.getEncoding()));
 		}else if(msgContentType.contains("multipart")){
 			Multipart mp = (Multipart)message.getContent();
 			depth = 0;
@@ -234,6 +258,13 @@ public class MailHandlerServlet extends HttpServlet {
 	protected Object getContent(BodyPart part) throws Exception{
 		String content = null;
 		content =  (String)MimeUtil.getContent(part);
+		return content;
+
+	}
+	
+	protected Object getContent(InputStream rawInputStream, String contentType, String mimeEncoding) throws Exception{
+		String content = null;
+		content =  (String)MimeUtil.getContent(rawInputStream, contentType,mimeEncoding);
 		return content;
 
 	}

@@ -43,6 +43,12 @@ public class EmailEvent {
 	List<String> to;
 	@Persistent
 	@Expose
+	List<String> cc;
+	@Persistent
+	@Expose
+	List<String> bcc;
+	@Persistent
+	@Expose
 	String source;
 	
 	@Persistent
@@ -64,12 +70,13 @@ public class EmailEvent {
 	List<Attachment> attachments;
 	
 	
-	public EmailEvent(String activityType, String subject, Text msgBody, List<String> from,List<String> to, String source, Date sentDate, List<Attachment> attachments){
+	public EmailEvent(String activityType, String subject, Text msgBody, List<String> from,List<String> to, List<String> cc,String source, Date sentDate, List<Attachment> attachments){
 		this.activityType = activityType;
 		this.subject = subject;
 		this.msgBody = new Text(msgBody.getValue());
 		this.from = from;
 		this.to = to;
+		this.cc = cc;
 		this.source = source;
 		this.subjectHash = subject.hashCode();
 		this.msgBodyHash = msgBody.getValue().hashCode();
@@ -163,5 +170,13 @@ public class EmailEvent {
 
 	public Long getId() {
 		return id;
+	}
+
+	public List<String> getCc() {
+		return cc;
+	}
+
+	public void setCc(List<String> cc) {
+		this.cc = cc;
 	}
 }

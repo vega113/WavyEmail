@@ -47,7 +47,7 @@ public class LoadContacts extends Command{
 	@Override
 	public JSONObject execute() throws JSONException {
 		String userId = this.getParam("userId");
-		 LOG.info("Loading contacts for: " + userId);
+		 LOG.fine("Loading contacts for: " + userId);
 	    if (util.isNullOrEmpty(userId)) {
 	      throw new IllegalArgumentException("Missing required param: userId");
 	    }

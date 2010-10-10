@@ -19,8 +19,11 @@
 .highlightRow {
 	background: #c9e2fc;
 	font-family: fantasy;
-	font-size: 13;
+	font-size: 12;
 	color:  DarkSkyBlue ;
+}
+.whiteFont {
+	font-weight: bold;
 }
 
 .whiteRow {

@@ -3,6 +3,6 @@
   <cron>
     <url>/RetryFailed</url>
     <description>Attempt the retry to deliver failed emails into wave</description>
-    <schedule>every 2 minutes</schedule>
+    <schedule>every 1 minutes</schedule>
   </cron>
 </cronentries>

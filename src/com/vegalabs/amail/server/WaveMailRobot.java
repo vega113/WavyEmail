@@ -17,6 +17,7 @@ import java.nio.charset.CodingErrorAction;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -213,10 +214,10 @@ public static final String GADGET_URL = "http://" + System.getProperty("APP_DOMA
   }
 
 		
- public void recieveMail(String msgBody, String subject, Set<String> recipientsApp, String fromFullEmail, List<Attachment> attachmentsList, Date sentDate){
+ public void recieveMail(String msgBody,String subject, String realRecipient,  Set<String> recipientsApp,Set<String> ccApp,Set<String> bccApp, String fromFullEmail, List<Attachment> attachmentsList, Date sentDate){
 	//create new wave
 	 
-	 LOG.info("recieveMail: msgBody: " + msgBody + ", subject" + subject +  ", attachmentsList size: " + attachmentsList + ", fromFullEmail: " + fromFullEmail + ", recipientsApp: " + recipientsApp);
+	 LOG.fine("recieveMail: msgBody: " + msgBody + ", subject" + subject +  ", attachmentsList size: " + attachmentsList + ", fromFullEmail: " + fromFullEmail + ", recipientsApp: " + recipientsApp);
 	 
 	 String onlyMail = MailUtils.stripRecipientForEmail(fromFullEmail);
  	 String onlyName = MailUtils.stripRecipientForName(fromFullEmail);
@@ -235,49 +236,53 @@ public static final String GADGET_URL = "http://" + System.getProperty("APP_DOMA
 	} catch (Exception e1) {
 		LOG.warning("Failed to create html content attachment : " + WaveMailRobot.filterNonISO(subject).trim());
 	}
- 	
-	 try{
-		 for(String toWaveMailAddress : recipientsApp){
-			 if(!toWaveMailAddress.endsWith("@" + System.getProperty("APP_DOMAIN") + ".appspotmail.com"))
-			 	continue;
-			 
-			 String toWaveAddress = MailUtils.mailId2waveId(toWaveMailAddress.toLowerCase());
-			 //get person
-			 Person person = null;
-			 person = personDao.getPerson(toWaveMailAddress);
-			 if(person == null){
-				 person = new Person(toWaveMailAddress);
-				 personDao.save(person);
-			 }
-			 
-			 //check if this recipient already got the email
-			 EmailEvent emailEvent = emailEventDao.getEmailEventByHash(subject.hashCode(),msgBody.hashCode(),sentDate );
-			 if(emailEvent == null){ 
-				 //first time 
-				 List<String> fromList = new ArrayList<String>();
-				 fromList.add(fromFullEmail);
-				 List<String> toList = new ArrayList<String>();
-				 toList.add(toWaveMailAddress);
-				 Text dbText = new Text(msgBody);
-				 EmailEvent newEmailEvent = new EmailEvent("RECEIVE", subject, dbText, fromList , toList, fromFullEmail, sentDate,attachmentsList);
-				 newEmailEvent = emailEventDao.save(newEmailEvent);
-				 
-				 
-				 //---------------
-				 receiveEmailWithRetry(person,newEmailEvent, null);
-			 }else if(emailEvent != null && !emailEvent.getTo().contains(toWaveMailAddress)){
-				 //email is not new - but this recipient didn't get it
-				 receiveEmailWithRetry(person,emailEvent, null);
-			 }else if(emailEvent != null && emailEvent.getTo().contains(toWaveAddress)){
-				 continue;
-			 }
+		
+	handleDeliveryToOne(fromFullEmail, realRecipient, recipientsApp,ccApp, subject, msgBody, sentDate, attachmentsList);
+ }
+ 
+ 
+ private void handleDeliveryToOne(String fromFullEmail, String toWaveMailAddress, Set<String> recipientsApp,Set<String> ccApp,String subject, String msgBody, Date sentDate, List<Attachment> attachmentsList){
+	 if(!toWaveMailAddress.endsWith("@" + System.getProperty("APP_DOMAIN") + ".appspotmail.com"))
+		 	return;
+	 toWaveMailAddress = toWaveMailAddress.toLowerCase().trim();
+		 
+		 String toWaveAddress = MailUtils.mailId2waveId(toWaveMailAddress);
+		 //get person
+		 Person person = null;
+		 person = personDao.getPerson(toWaveMailAddress);
+		 if(person == null){
+			 person = new Person(toWaveMailAddress);
+			 personDao.save(person);
 		 }
-	 }catch(Exception e){
-		 LOG.log(Level.SEVERE, "", e);
-	 }
-	  
-	 
-	 
+		 
+		 //check if this recipient already got the email
+		 EmailEvent emailEvent = emailEventDao.getEmailEventByHash(subject.hashCode(),msgBody.hashCode(),sentDate );
+		 if(emailEvent == null){ 
+			 //first time 
+			 List<String> fromList = new ArrayList<String>();
+			 fromList.add(fromFullEmail);
+			 List<String> toList = new ArrayList<String>();
+			 for(String rec : recipientsApp){
+				 toList.add(rec);
+			 }
+			 List<String> ccList = new ArrayList<String>();
+			 for(String rec : ccApp){
+				 ccList.add(rec);
+			 }
+			
+			 Text dbText = new Text(msgBody);
+			 EmailEvent newEmailEvent = new EmailEvent("RECEIVE", subject, dbText, fromList , toList,ccList, fromFullEmail, sentDate,attachmentsList);
+			 newEmailEvent = emailEventDao.save(newEmailEvent);
+			 
+			 
+			 //---------------
+			 receiveEmailWithRetry(person,newEmailEvent, null);
+		 }else if(emailEvent != null && !emailEvent.getTo().contains(toWaveMailAddress)){
+			 //email is not new - but this recipient didn't get it
+			 receiveEmailWithRetry(person,emailEvent, null);
+		 }else if(emailEvent != null && emailEvent.getTo().contains(toWaveAddress)){
+			 return;
+		 }
  }
 
  private Attachment createStrAttachment(String fileName, String htmlContent) throws Exception {
@@ -311,7 +316,7 @@ public void receiveEmailWithRetry(Person person, EmailEvent newEmailEvent, Email
 	 }
 	try {
 		newBlipFullAddress = sendNewEmailToRecipient(newEmailEvent.getMsgBody().getValue(), newEmailEvent.getSubject(), newEmailEvent.getSource(),
-				 person.getWavemail(), newEmailEvent.getTo(),newEmailEvent.getAttachments(),threadBlipAddress);
+				 person.getWavemail(), newEmailEvent.getTo(),newEmailEvent.getCc(),newEmailEvent.getAttachments(),threadBlipAddress);
 //		newBlipFullAddress = sendNewEmailToRecipientVer2(person.getId().toString(), newEmailEvent.getId().toString(), newEmailEvent.getSubject(), newEmailEvent.getSource(),
 //				 person.getWavemail(), MailUtils.mailId2waveId(person.getWavemail().toLowerCase()), newEmailEvent.getTo(),newEmailEvent.getAttachments(),threadBlipAddress);
 		 //check if the bo
@@ -326,7 +331,7 @@ public void receiveEmailWithRetry(Person person, EmailEvent newEmailEvent, Email
 		 emailThreadDao.save(thread);
 	} 
 	catch (Exception e) {
-		 LOG.log(Level.WARNING, "EmailEvent id: " + newEmailEvent.getId() + ", person id: " + person.getId(), e);
+		 LOG.log(Level.FINE, "EmailEvent id: " + newEmailEvent.getId() + ", person id: " + person.getId(), e);
 		 // TODO schedule to receive again or send bounce
 		 StringWriter exceptionStackTraceWriter = new StringWriter();
 		 e.printStackTrace(new PrintWriter(exceptionStackTraceWriter));
@@ -352,20 +357,22 @@ public void receiveEmailWithRetry(Person person, EmailEvent newEmailEvent, Email
 
 
 
-public StringBuilder buildAllRecipients(Iterable<String> recipientsApp) {
+public StringBuilder buildAllRecipients(Iterable<String> recipientsApp, String prefix) {
 	StringBuilder allRecipientsSB = new StringBuilder();
 	 for(String rec : recipientsApp){
-		 allRecipientsSB.append(rec + ","); 
+		 allRecipientsSB.append("[" + prefix + rec + "]" + ","); 
 	 }
-	 allRecipientsSB.deleteCharAt(allRecipientsSB.lastIndexOf(","));
+	 if(allRecipientsSB.lastIndexOf(",") != -1)
+		 allRecipientsSB.deleteCharAt(allRecipientsSB.lastIndexOf(","));
 	return allRecipientsSB;
 }
 
 
 private FullWaveAddress sendNewEmailToRecipient(String content, String subject,String fromFullEmail, String waveMailAddressRecipient,
-		List<String> allRecipientsList,List<Attachment> attachmentsList, FullWaveAddress threadBlipAddress) throws IOException {
+		List<String> toList,List<String> ccList,List<Attachment> attachmentsList, FullWaveAddress threadBlipAddress) throws IOException {
 	String waveAddressRecipient = MailUtils.mailId2waveId(waveMailAddressRecipient.toLowerCase());
-	String allRecipients = buildAllRecipients(allRecipientsList).toString();
+	String allRecipients = buildAllRecipients(toList, "To:").toString();
+	allRecipients += buildAllRecipients(ccList, "Cc:").toString();
 	Wavelet threadWavelet = null;
 	String fromMailStripped= MailUtils.stripRecipientForEmail(fromFullEmail);
 	String proxyFor = fromMailStripped.replace("@", "-");
@@ -428,113 +435,25 @@ private void appendAttachments(List<Attachment> attachmentsList, Blip blip) {
 		for(Attachment attachment : attachmentsList){
 			byte[] data = attachment.getData();
 			int dataSize = data != null ? data.length : 0;
-			LOG.info("append attachment: " + attachment.getCaption() + ", size: " + dataSize + " bytes");
+			LOG.fine("append attachment: " + attachment.getCaption() + ", size: " + dataSize + " bytes");
 			blip.append(attachment);
 		}
 }
 
 
 
-	private FullWaveAddress sendNewEmailToRecipientVer2(String personId, String emailEventId, String subject,String fromFullEmail, String waveMailAddressRecipient,
-			String waveAddressRecipient, List<String> allRecipientsList,List<Attachment> attachmentsList, FullWaveAddress threadBlipAddress) throws IOException {
-		Wavelet threadWavelet = null;
-		String fromMailStripped= MailUtils.stripRecipientForEmail(fromFullEmail);
-		String proxyFor = fromMailStripped.replace("@", "-");
-		if(threadBlipAddress == null){
-			threadWavelet = newWave(domain, new LinkedHashSet<String>() ,"NEW_EMAIL_RECEIVED",proxyFor,getRpcServerUrl());
-		}else{
-			//fetch wavelet
-			threadWavelet = fetchWavelet(threadBlipAddress.getFullWaveId(), null);
-			try{
-				String user = System.getProperty("APP_DOMAIN") + "+" + proxyFor + "@appspot.com";
-				if(!threadWavelet.getParticipants().contains(user)){
-					threadWavelet.getParticipants().add(user);
-				}
-			}catch(NullPointerException npe){
-				LOG.log(Level.SEVERE,threadBlipAddress.toFullWaveId(),npe);
-				throw npe;
-			}
-		}
-
-		FullWaveAddress newBlipFullAddress = null;
-
-		String subjectTitle = subject;
-		subjectTitle = filterNonISO(subject);
-		threadWavelet.setTitle("Email: " + subjectTitle);
-
-		//add participants to it
-		threadWavelet.getParticipants().add(waveAddressRecipient);
-		threadWavelet.getParticipants().add(System.getProperty("APP_DOMAIN") + "@appspot.com");
-
-		String blipId = null;
-		Blip blip = null;
-		if(threadBlipAddress == null){
-			LOG.info("new thread");
-			blip = threadWavelet.getRootBlip(); 
-			blipId = threadWavelet.getRootBlipId();
-			newBlipFullAddress = new FullWaveAddress(threadWavelet.getWaveId().getDomain(), threadWavelet.getWaveId().getId(), blipId);
-			appendMailGadgetVer2( personId,emailEventId,blip, blip.getBlipId());
-		}else{
-			blip = threadWavelet.getBlip(threadBlipAddress.getBlipId()).continueThread();
-		}
-
-
-		appendAttachments(attachmentsList, blip);
-
-		//submit wave
-		updateOnMailReceive(threadWavelet, ActivityType.RECEIVE, subject, fromMailStripped);
-		
-		List<JsonRpcResponse> jsonRpcResponseList = submit(threadWavelet, getRpcServerUrl());
-		if(!blip.isRoot()){
-			LOG.info("existing thread");
-			for(JsonRpcResponse jsonRpcResponse : jsonRpcResponseList){
-				if(jsonRpcResponse.getData().containsKey(ParamsProperty.NEW_BLIP_ID)){
-					blipId = String.valueOf(jsonRpcResponse.getData().get(ParamsProperty.NEW_BLIP_ID));
-					break;
-				}
-			}
-			appendMailGadgetVer2(personId,emailEventId,blip,blipId);
-			newBlipFullAddress = new FullWaveAddress(threadWavelet.getWaveId().getDomain(), threadWavelet.getWaveId().getId(), blipId);
-			submit(threadWavelet, getRpcServerUrl());
-		}
-		return newBlipFullAddress;
-	}
-
-
 
 public String decode(String str2Decode) {
-//	str2Decode = Base64Coder.decodeString(str2Decode);
-//	str2Decode = Base64Coder.decodeString(str2Decode);
-//	str2Decode = HtmlTools.unescape(str2Decode);
 	String out = str2Decode;
 	out = UnicodeString.deconvert(str2Decode);
-	LOG.info("in decode, before: " + str2Decode );
-	LOG.info("in decode, after: " + out );
+	LOG.fine("in decode, before: " + str2Decode );
+	LOG.fine("in decode, after: " + out );
 	return out;
 }
 
 public String encode(String str2Encode) {
-	
-//	str2Encode = new String(str2Encode.getBytes(UTF8_CHARSET));
-//	str2Encode = UnicodeString.deconvert(str2Encode);
-//	str2Encode = removeNonUtf8CompliantCharacters(str2Encode);
-//	str2Encode.replaceAll("\n", "").replaceAll("\r", "").replaceAll("\t", " ");
-//	str2Encode = UnicodeString.convert(str2Encode);
-//	str2Encode = Base64Coder.encodeString(str2Encode);
 	String out = str2Encode;
-	//out = filterNonUtf8(out);
-//	out = HtmlTools.escape( out);
-//	if(!out.equals(UnicodeString.deconvert(UnicodeString.convert(out)))){
-//		LOG.warning("orig: " + out);
-//		LOG.warning("after convert/deconvert: " + UnicodeString.deconvert(UnicodeString.convert(out)));
-//		//throw new RuntimeException("convert/deconvert is not reversible!!! " + out);
-//	}
-	
-//	out = charsetUtils.encode(str2Encode).toString();
 	out = UnicodeString.convert(out);
-//	str2Encode = Base64Coder.encodeString(str2Encode);
-	
-//	str2Encode = Base64Coder.encodeString(str2Encode);
 	LOG.info("in utf-8 encode, before: " + str2Encode );
 	LOG.info("in encode, after: " + out );
 	
@@ -578,44 +497,9 @@ public static String filterNonISO(String inString) {
 }
 
 
-public static String filterNonUtf8(String inString) {
-	// Create the encoder and decoder for the character encoding
-	Charset charset = Charset.forName("UTF-8");
-	CharsetDecoder decoder = charset.newDecoder();
-	CharsetEncoder encoder = charset.newEncoder();
-	// This line is the key to removing "unmappable" characters.
-	encoder.onUnmappableCharacter(CodingErrorAction.REPORT);
-	String result = inString;
-
-	try {
-		// Convert a string to bytes in a ByteBuffer
-		ByteBuffer bbuf = null;
-		try{
-			bbuf = encoder.encode(CharBuffer.wrap(inString));
-		}catch (CharacterCodingException cce) {
-			String errorMessage = "Exception during character encoding/decoding: " + cce.getMessage();
-			LOG.log(Level.WARNING,errorMessage, cce);
-		}
-
-		// Convert bytes in a ByteBuffer to a character ByteBuffer and then to a string.
-		CharBuffer cbuf = decoder.decode(bbuf);
-		result = cbuf.toString();
-	} catch (CharacterCodingException cce) {
-		String errorMessage = "Exception during character encoding/decoding: " + cce.getMessage();
-		LOG.log(Level.SEVERE,errorMessage, cce);
-	}
-
-	return result;	
-}
-
-
-
-
-	
- 
  
  private void appendMailGadget(Blip blip, String blipId,String msgBody, String subject, String from, String to,String waveUserId, String toAll, String mode) {
-		LOG.info("appendMailGadget:  blipId: " + blipId + ", subject: " + subject);
+		LOG.fine("appendMailGadget:  blipId: " + blipId + ", subject: " + subject);
 		//check if blip already contains the add gadget. 
 		Gadget gadget = extractGadgetFromBlip(GADGET_URL,blip);
 		if(gadget == null){
@@ -634,15 +518,13 @@ public static String filterNonUtf8(String inString) {
 		    out.put("from", from);
 		    out.put("toAll", toAll);
 		    out.put("to", to);
-		    out.put("1", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");//to hide the contacts from Gwave client - it displays them after wave title
-		    out.put("a", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 		    out.put("contacts#" + waveUserId, contacts);
 		    encode(out);
 		    
 		    out.put("mode", mode);
 		    updateGadgetState(blip, GADGET_URL, out);
 		    List<BundledAnnotation> baList = BundledAnnotation.listOf("style/fontSize", "8pt");
-		    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - please attach the file/s below: (please note to set appropriate file extensions, i.e. myimage.jpg)." + 
+		    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - jus attach the file/s below, i.e. switch to \"Edit\" mode, and then attach files to the blip by clicking on the staple icon on the wave's top toolsbar. Please note to set appropriate file extensions, i.e. myimage.jpg." + 
 		    		"\nAlso note - maximum email size is 1MB due to Google AppEngine restrictions." + 
 		    		" You can check ");
 		    List<BundledAnnotation> baList1 = BundledAnnotation.listOf("style/fontSize", "8pt", "link/manual", "http://code.google.com/appengine/docs/python/mail/overview.html#Attachments");
@@ -653,34 +535,6 @@ public static String filterNonUtf8(String inString) {
 		
 	}
 	
-	private void appendMailGadgetVer2(String personId, String emailEventId,Blip blip, String blipId) {
-		LOG.info("appendMailGadget:  blipId: " + blip.getBlipId() + ", emailEventId: " + emailEventId);
-		if(blipId == null){
-			blipId = blip.getBlipId();
-		}
-		//check if blip already contains the add gadget. 
-		Gadget gadget = extractGadgetFromBlip(GADGET_URL,blip);
-		if(gadget == null){
-//			String contacts = retrContacts4User(to);
-			
-			gadget = new Gadget(GADGET_URL);
-			blip.at(blip.getContent().length()).insert(gadget);
-			
-			Map<String,String> out = new HashMap<String, String>();
-		    out.put("personId", personId);
-		    out.put("emailEventId", emailEventId);
-		    out.put("blipId", blipId);
-//		    out.put("contacts", contacts);
-		    out.put("mode", "REQUEST_CONTENT");
-		    updateGadgetState(blip, GADGET_URL, out);
-		    List<BundledAnnotation> baList = BundledAnnotation.listOf("style/fontSize", "8pt");
-		    blip.at(blip.getContent().length()).insert(baList,"\nTo send attachments - please attach the file/s below: (please note to set appropriate file extensions, i.e. myimage.jpg)\n");
-		}
-		
-	}
-
-
-
 	public void updateGadgetState(Blip blip, String gadgetUrl,Map<String, String> out) {
 		Gadget gadget = extractGadgetFromBlip(gadgetUrl,blip);
 		gadget.getProperties().putAll(out);
@@ -738,75 +592,16 @@ protected void submitWavelet(Wavelet wavelet) {
 	try {
 		  submit(wavelet, getRpcServerUrl());
 	  } catch (IOException e) {
-//		  try{
-//			  LOG.log(Level.SEVERE, "Trying to resubmit",e);
-//			  submit(wavelet, getRpcServerUrl());
-//		  }catch (Exception e1) {
-//			  LOG.log(Level.SEVERE, "Failed after resubmitting!!!",e1);
-//		}
 		  LOG.log(Level.WARNING, "Wavelet submition failed", e);
 	  }
 }
 
-  private boolean isNormalUser(String userId) {
-    return userId != null && !(userId.endsWith("appspot.com") || userId.endsWith("gwave.com"));
-  }
-
-//  @Override
-//  @Capability(contexts = {Context.ROOT, Context.SELF})
-//  public void onBlipSubmitted(BlipSubmittedEvent event) {
-//	  LOG.warning("Entering onBlipSubmitted");
-//	  if(event.getBlip() == null || event.getBlip().getContent() == null || event.getBlip().getContent().length()  < 2){
-//		  LOG.log(Level.FINE, "The content is not worthy, slipping processing");
-//		  return;
-//	  }
-//	  // If this is from the "*-notify" proxy, skip processing.
-//	  if (isNotifyProxy(event.getBundle().getProxyingFor())) {
-//		  return;
-//	  }
-//
-//
-//	  // If this is unworthy wavelet (empty), skip processing.
-//	  if (!isWorthy(event.getWavelet()) && event.getBlip().isRoot()) {
-//		  event.getWavelet().setTitle(event.getBlip().getContent().split(" ")[0].replace("\n", ""));
-//	  }else  if (!isWorthy(event.getWavelet())){
-//		  return;
-//	  }
-//
-//	  Wavelet wavelet = event.getWavelet();
-//
-//  }
 
 public String makeBackStr(String forumName) {
 	String back2digestWaveStr = "\nBack to \"" + forumName + "\" digest";
 	return back2digestWaveStr;
 }
 
-  
-
-  
-
-
-  
-  private boolean isWorthy(Wavelet wavelet) {
-    return !wavelet.getTitle().trim().equals("");
-  }
-
-  
-
-  private boolean isNotifyProxy(String proxyForString) {
-    if (proxyForString != null && proxyForString.endsWith("-notify")) {
-      return true;
-    } else {
-    	 LOG.log(Level.INFO, "proxyForString: " + proxyForString + " in isNotifyProxy");
-      return false;
-    }
-  }
-
-
-  private String getServerName() {
-    return System.getProperty("APP_DOMAIN");
-  }
 
   public String getRobotAvatarUrl() {
 	  String robotIconUrl = System.getProperty("ROBOT_ICON_URL");
@@ -830,7 +625,7 @@ public String makeBackStr(String forumName) {
   @SuppressWarnings("unused")
 @Override
   protected ParticipantProfile getCustomProfile(String name) {
-	  LOG.info("requested profile for: " + name);
+	  LOG.fine("requested profile for: " + name);
 	  ParticipantProfile profile = null;
 	  Object o = cache.get("SeriallizableParticipantProfile1#"+name);
 	  profile = o != null ? ((SeriallizableParticipantProfile)o).getProfile() : null;
@@ -843,7 +638,7 @@ public String makeBackStr(String forumName) {
 				  profile = ((SeriallizableParticipantProfile)o).getProfile();
 			  }
 		  }
-		  LOG.info("Found profile in cache: " + printProfile(profile));
+		  LOG.fine("Found profile in cache: " + printProfile(profile));
 		  return profile;
 	  }
 	  LOG.fine("Not found profile in cache for: " + name);
@@ -855,7 +650,7 @@ public String makeBackStr(String forumName) {
 	  //now let's check in DB
 	  if(email != null){
 		  SeriallizableParticipantProfile dbProfile = sppDao.getSeriallizableParticipantProfile(email);
-		  LOG.info("Found profile in DB: " + dbProfile);
+		  LOG.fine("Found profile in DB: " + dbProfile);
 		  if(dbProfile != null){
 			  if(dbProfile.getImageUrl() == null){ 
 				  updateProfileWithGravatar( email,dbProfile);
@@ -906,7 +701,7 @@ public void updateProfileWithGravatar(String email,
 			LOG.log(Level.WARNING, email, e);
 		}
 	  newProfile.updateWith(gravatarProfile);
-	  LOG.info("updated: " + newProfile.toString());
+	  LOG.fine("updated: " + newProfile.toString());
 }
 
 
@@ -956,109 +751,6 @@ private String switch2email(String name) {
 	  LOG.severe(event.getMessage());
   }
 
-//  @Override
-//  @Capability(contexts = {Context.SELF})
-//  public void onGadgetStateChanged(GadgetStateChangedEvent e) {
-//	  LOG.log(Level.INFO, "entering OnGadgetStateChanged: ");
-//	// If this is from the "*-digest" proxy, skip processing.
-//	  boolean isDigestAdmin = true; //isDigestAdmin(e.getBundle().getProxyingFor());
-//	  String[] gadgetUrls = createGadgetUrlsArr();
-//	  JSONObject json = new JSONObject();
-//	  Blip blip = e.getBlip();
-//	  Gadget gadget = null;
-//	  
-//	  
-////	  if (!isDigestAdmin) {
-////	      LOG.info("onGadgetStateChanged: "  + e.getBundle().getProxyingFor() + " return!");
-////	      return; //only gadget proxy allowed to react
-////	    }else{
-////	    	LOG.info("onGadgetStateChanged: "  + e.getBundle().getProxyingFor() + " process!");
-////	    }
-//	  LOG.info("onGadgetStateChanged: "  + e.getBundle().getProxyingFor() + " process!");
-//	  int i = 0;
-//	  String gadgetUrl = null;
-//	  while(gadget == null && i < gadgetUrls.length){
-//		  gadgetUrl = gadgetUrls[i];
-//		  gadget = Gadget.class.cast(blip.first(ElementType.GADGET,Gadget.restrictByUrl(gadgetUrl)).value());
-//		  if(gadget!=null){
-//			  handleGadgetRequest(e, json, blip, gadget);
-//		  }
-//		  i++;
-//	  }
-//	  
-//  }
-
-public void handleGadgetRequest(GadgetStateChangedEvent e, JSONObject json,
-		Blip blip, Gadget gadget) {
-	try{
-		  if(gadget!=null)
-		  {
-			  LOG.log(Level.INFO, "entering handleGadgetRequest: " + gadget.getUrl());
-			  Set<String> keys = new LinkedHashSet<String>( gadget.getProperties().keySet());
-			  for(String key : keys){
-				  String[] split = key.split("#");
-				  String postBody = gadget.getProperty(key);
-				  if(split != null && split.length == 3 && split[0].equalsIgnoreCase("request") && postBody != null){
-					  String responseKey = "response#" + split[1] + "#" +  split[2];
-					  LOG.info("Found request: " + key + ", body: " + postBody);
-					  Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
-					  JsonRpcRequest jsonRpcRequest = gson.fromJson(postBody, JsonRpcRequest.class);
-					  if (jsonRpcRequest != null) {
-						  String method = jsonRpcRequest.getMethod();
-						  if (method != null) {
-							  LOG.info("processing method " + method);
-							  Class<? extends Command> commandClass = com.vegalabs.amail.server.admin.CommandType.valueOfIngoreCase(method).getClazz();
-							  Command command = injector.getInstance(commandClass);
-							  jsonRpcRequest.getParams().put("senderId", e.getModifiedBy());
-							  String projectId = e.getBundle().getProxyingFor();
-							  jsonRpcRequest.getParams().put("projectId", projectId);
-							  LOG.info("sender is: " + e.getModifiedBy());
-							  command.setParams(jsonRpcRequest.getParams());
-							  try{
-								  try {
-									  json = command.execute();
-								  } catch (JSONException e1) {
-									  json.put("error", e1.getMessage());
-								  } catch (IllegalArgumentException e2) {
-									  json.put("error", e2.getMessage());
-								  }
-							  }catch(JSONException e3){
-								  json.put("error", e3.getMessage());
-								  LOG.severe(e3.getMessage());
-							  }
-							  Map<String,String> out = new HashMap<String, String>();
-							  out.put(key, null);
-							  if(!split[1].equals("none")){ //if none - no reply needed
-								  out.put(responseKey, json.toString());
-							  }
-							  updateGadgetState(blip, GADGET_URL, out);
-						  }
-					  }
-				  }
-			  }
-		  }else{
-			  LOG.log(Level.WARNING, "\nGadget is null: ");
-		  }
-	  }catch(Exception e4){
-		  
-		  StringWriter sw = new StringWriter();
-		  PrintWriter pw = new PrintWriter(sw);
-		  e4.printStackTrace(pw);
-		  e.getWavelet().reply("\n" + "EXCEPTION !!!" + sw.toString() + " : " + e4.getMessage());
-		  LOG.severe(sw.toString());
-	  }
-}
-
-protected String[] createGadgetUrlsArr() {
-	String gadgetUrl1 = "http://" + System.getProperty("APP_DOMAIN") + ".appspot.com/digestbottygadget/com.aggfi.digest.client.DigestBottyGadget.gadget.xml";
-	  String gadgetUrl2 = System.getProperty("READONLYPOST_GADGET_URL");
-	  String gadgetUrl3 = "http://vegalabs.appspot.com/tracker.xml";
-	  String[] gadgetUrls = {gadgetUrl1, gadgetUrl2,gadgetUrl3};
-	return gadgetUrls;
-}
-
-
-
 
 	public List<BundledAnnotation> createToAnnotation(Blip blipToUpdate, String blipId, String linkToAnnonationName) {
 		String blipRef = "waveid://" + blipToUpdate.getWaveId().getDomain() + "/" + blipToUpdate.getWaveId().getId() + "/~/conv+root/" + blipId;
@@ -1067,34 +759,6 @@ protected String[] createGadgetUrlsArr() {
 	}
 
 
-	public void removeViewsTrackingGadget(Blip blip, String projectId) {
-		LOG.info("removeViewsTrackingGadget: " + projectId + ", blipId: " + blip.getBlipId());
-		String gadgetUrl = "http://" + System.getProperty("APP_DOMAIN") + ".appspot.com/tracker.xml";
-		//check if blip already contains the add gadget. 
-		Gadget gadget = null;
-		BlipContentRefs gadgetRef = blip.first(ElementType.GADGET,Gadget.restrictByUrl(gadgetUrl));
-		if(gadgetRef != null){
-			gadget = Gadget.class.cast(gadgetRef.value());
-			if(gadget != null){
-			   blip.first(ElementType.GADGET,Gadget.restrictByUrl(gadget.getUrl())).delete();
-			   gadgetRef = blip.first(ElementType.GADGET,Gadget.restrictByUrl(gadgetUrl));
-			   if(gadgetRef != null){
-				   gadget = Gadget.class.cast(gadgetRef.value());
-				   if(gadget != null){
-					   LOG.warning("Failed to remove gadget!!! blipId: " + blip + ", projectId: " + projectId );
-				   }else{
-					   LOG.info("Removed gadget!!! blipId: " + blip + ", projectId: " + projectId );
-				   }
-			   }else{
-				   LOG.info("Removed gadget!!! blipId: " + blip + ", projectId: " + projectId );
-			   }
-			   
-			 
-			}
-		}
-		
-	}
-	
 	public String updateWaveletOnEmailSent(Wavelet wavelet, int activityType, String recipients, String subject) {
 		
 		subject = filterNonISO(subject);
@@ -1186,7 +850,6 @@ protected String[] createGadgetUrlsArr() {
 		String appdomain = System.getProperty("APP_DOMAIN");
 		Date today = new Date(System.currentTimeMillis());
 		SimpleDateFormat dateFormat = new SimpleDateFormat("MMM-dd");
-		SimpleDateFormat detailedFormat = new SimpleDateFormat("dd-MMM HH:mm:ss");
 		String todayStr = dateFormat.format(today);
 		//fetch the wavelet
 		Tags tags = wavelet.getTags();

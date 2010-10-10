@@ -3,6 +3,7 @@ package com.vegalabs.amail.server.utils;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -14,6 +15,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.activation.DataHandler;
 import javax.mail.BodyPart;
 import javax.mail.MessagingException;
 import javax.mail.Session;
@@ -81,33 +83,10 @@ public class MimeUtil {
 	public static int digit16(byte b) throws IOException {
 		int i = Character.digit(b, 16);
 		if (i == -1) {
-			throw new IOException("<MimeUtil> Invalid encoding: not a valid digit (radix 16): "                    + b);
+			throw new IOException("<MimeUtil> Invalid encoding: not a valid digit (radix 16): "  + b);
 		}
 		return i;
 	}
-
-//	public static Object getContent(MimeMessage message) throws
-//	Exception {
-//		String charset = contentType2Charset(message.getContentType(),
-//				null);
-//		Object content;
-//		try {
-//			content = message.getContent();
-//		} catch (Exception e) {
-//			try {
-//				byte[] out = getBytes(message.getRawInputStream());
-//				out = decodeQuotedPrintable(out);
-//				if (charset != null) {
-//					content = new String(out, charset);
-//				} else {
-//					content = new String(out);
-//				}
-//			} catch (Exception e1) {
-//				throw e;
-//			}
-//		}
-//		return content;
-//	}
 
 	private static byte[] getBytes(InputStream rawInputStream) throws IOException {
 		List<Byte> bytesList = new ArrayList<Byte>();
@@ -137,28 +116,15 @@ public class MimeUtil {
 				if(part instanceof javax.mail.internet.MimeBodyPart){
 					mimeBodyPart = (javax.mail.internet.MimeBodyPart)part;
 					InputStream rawInputStream = mimeBodyPart.getRawInputStream();
-					String charset = contentType2Charset(mimeBodyPart.getContentType(), "UTF-8");
+					
+					
+					String contentType = mimeBodyPart.getContentType();
 					String mimeEncoding = mimeBodyPart.getEncoding();
+					
 					LOG.info("mimeEncoding: " + mimeEncoding);
-					ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-						int c;
-						while ((c = rawInputStream.read()) != -1)
-							outputStream.write(c);
-						// get the character set from the content-type
-						byte[] encodedBytes = outputStream.toByteArray();
-						String encodedContent = new String(outputStream.toByteArray(), charset);
-						LOG.info("encoded content: " + encodedContent);
-						String decodedContent = null;
-						if("quoted-printable".equals(mimeEncoding.toLowerCase())){
-							decodedContent = new String(decodeQuotedPrintable(encodedBytes), charset);
-						}else if("base64".equals(mimeEncoding.toLowerCase())){
-							
-							decodedContent = new String(Base64.decodeBase64(encodedBytes),charset);
-						}else{
-							decodedContent = encodedContent;
-						}
-						LOG.info("decoded content: " + decodedContent);
-						content = Normalizer.normalize(decodedContent, Form.NFKC) ;//
+					
+					content = processRawInputStream(rawInputStream,
+							contentType, mimeEncoding);
 
 				}else{
 					if(content == null || content.length() == 0 ){
@@ -189,9 +155,36 @@ public class MimeUtil {
 				if(content == null || content.toString().length() < 2 ){
 					throw e;
 				}
-				LOG.info("in getContent:decodeQuotedPrintable:MimeUtility.decode content: " + content);
+				LOG.fine("in getContent:decodeQuotedPrintable:MimeUtility.decode content: " + content);
 			}
 		}
+		return content;
+	}
+
+	public static String processRawInputStream(InputStream rawInputStream,
+			String contentType, String mimeEncoding) throws IOException,
+			UnsupportedEncodingException {
+		String content;
+		String charset = contentType2Charset(contentType, "UTF-8");
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+			int c;
+			while ((c = rawInputStream.read()) != -1)
+				outputStream.write(c);
+			// get the character set from the content-type
+			byte[] encodedBytes = outputStream.toByteArray();
+			String encodedContent = new String(outputStream.toByteArray(), charset);
+			LOG.fine("encoded content: " + encodedContent);
+			String decodedContent = null;
+			if("quoted-printable".equals(mimeEncoding.toLowerCase())){
+				decodedContent = new String(decodeQuotedPrintable(encodedBytes), charset);
+			}else if("base64".equals(mimeEncoding.toLowerCase())){
+				
+				decodedContent = new String(Base64.decodeBase64(encodedBytes),charset);
+			}else{
+				decodedContent = encodedContent;
+			}
+			LOG.fine("decoded content: " + decodedContent);
+			content = Normalizer.normalize(decodedContent, Form.NFKC) ;//
 		return content;
 	}
 
@@ -211,6 +204,24 @@ public class MimeUtil {
 			}
 		}
 		return charset;
+	}
+
+	public static String getContent(InputStream rawInputStream, String contentType, String mimeEncoding) {
+		String content = null;
+		try {
+			content =  processRawInputStream(rawInputStream, contentType, mimeEncoding);
+		} catch (UnsupportedEncodingException e) {
+			LOG.log(Level.WARNING, (String) content, e);
+		} catch (IOException e) {
+			LOG.log(Level.WARNING, (String) content, e);
+			try {
+				return new String(getBytes(rawInputStream));
+			} catch (IOException e1) {
+				LOG.log(Level.WARNING, (String) content, e1);
+			}
+		}
+		
+		return content;
 	}
 
 

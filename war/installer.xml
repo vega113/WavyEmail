@@ -2,7 +2,7 @@
 <extension name="Wavy Email beta"
 	thumbnailUrl="http://lh6.ggpht.com/_tsWs83xehHE/TLBQ-7Nu-VI/AAAAAAAAFiA/ePzhrvMXkfI/wavyemailbeta.png"
 	description="Send/receive emails inside Wave with HTML and attachments support. " 
-	version="004">
+	version="005">
 	<author name="Yuri Zelikov" />
 	<savedSearchHook name="Wavy eMails (beta)"  query="tag:wavyemailbeta" color="blue" />
 	<menuHook location="newwavemenu" text="New Wavy eMail beta">
@@ -15,6 +15,7 @@
 		<addParticipants> 
 			<participant id="wavyemailbeta@appspot.com" /> 
 		</addParticipants>
+		<insertGadget url="http://wavyemailbeta.appspot.com/wavemail/com.vegalabs.amail.client.WaveMailGadget.gadget.xml" />
 	</menuHook>
 </extension> 
 
