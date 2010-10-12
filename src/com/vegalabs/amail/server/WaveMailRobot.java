@@ -28,6 +28,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.jdo.PersistenceManagerFactory;
+import javax.mail.internet.MimeUtility;
+import javax.mail.internet.ParseException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -337,12 +339,13 @@ public void receiveEmailWithRetry(Person person, EmailEvent newEmailEvent, Email
 		 emailThreadDao.save(thread);
 	} 
 	catch (Exception e) {
-		 LOG.log(Level.FINE, "EmailEvent id: " + newEmailEvent.getId() + ", person id: " + person.getId(), e);
+		 LOG.log(Level.SEVERE, "EmailEvent id: " + newEmailEvent.getId() + ", person: " + person.toString() + ", EmailEvent: " + newEmailEvent.toString(), e);
 		 // TODO schedule to receive again or send bounce
 		 StringWriter exceptionStackTraceWriter = new StringWriter();
 		 e.printStackTrace(new PrintWriter(exceptionStackTraceWriter));
 		 if(emailFailedEvent == null){
 			 emailFailedEvent = new EmailFailedEvent(person.getWavemail(), person.getId(), newEmailEvent.getId(), e.getMessage(), new Text(exceptionStackTraceWriter.toString()));
+			 emailFailedEvent.setAction("RECEIVE");
 			 emailFailedEventDao.save(emailFailedEvent);
 		 }else{
 			 emailFailedEvent.setRetryCount(emailFailedEvent.getRetryCount() + 1);
@@ -380,8 +383,13 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 	String allRecipients = buildAllRecipients(toList, "To:").toString();
 	allRecipients += buildAllRecipients(ccList, "Cc:").toString();
 	Wavelet threadWavelet = null;
-	String fromMailStripped= MailUtils.stripRecipientForEmail(fromFullEmail);
-	String proxyFor = fromMailStripped.replace("@", "-");
+	fromFullEmail = MailUtils.decodeEmailAddress(fromFullEmail);
+	String fromMailStripped= MailUtils.stripRecipientForEmail(filterNonASCII(fromFullEmail));
+	if(!fromMailStripped.contains("@")){
+		LOG.severe("fromMailStripped: " + fromMailStripped + ", fromFullEmail: " + fromFullEmail);
+	}
+	String proxyFor = fromMailStripped.replace("@", "-").trim();
+	LOG.info("proxyFor: " + proxyFor + ", fromFullEmail: " + fromFullEmail);
 	if(threadBlipAddress == null){
 		threadWavelet = newWave(domain, new LinkedHashSet<String>() ,"NEW_EMAIL_RECEIVED",proxyFor,getRpcServerUrl());
 	}else{
@@ -394,7 +402,7 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 	
 	FullWaveAddress newBlipFullAddress = null;
 	String subjectTitle = subject;
-	subjectTitle = filterNonISO(subject);
+	subjectTitle = filterNonASCII(subject);
 //	subjectTitle = MailUtils.toUTF8(subjectTitle, null);
 	threadWavelet.setTitle("Email: " + subjectTitle);
 	 
@@ -417,7 +425,9 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 	 
 	 //submit wave
 	
-	  List<JsonRpcResponse> jsonRpcResponseList = submit(threadWavelet, getRpcServerUrl());
+	  List<JsonRpcResponse> jsonRpcResponseList = null;
+	  jsonRpcResponseList = submit(threadWavelet, getRpcServerUrl());
+	 
 	  if(!blip.isRoot()){
 		  for(JsonRpcResponse jsonRpcResponse : jsonRpcResponseList){
 			  if(jsonRpcResponse.getData().containsKey(ParamsProperty.NEW_BLIP_ID)){
@@ -433,6 +443,7 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 	  submit(threadWavelet, getRpcServerUrl());
 	  return newBlipFullAddress;
 }
+
 
 
 
@@ -460,8 +471,8 @@ public String decode(String str2Decode) {
 public String encode(String str2Encode) {
 	String out = str2Encode;
 	out = UnicodeString.convert(out);
-	LOG.info("in utf-8 encode, before: " + str2Encode );
-	LOG.info("in encode, after: " + out );
+	LOG.fine("in utf-8 encode, before: " + str2Encode );
+	LOG.fine("in encode, after: " + out );
 	
 	return out;
 }
@@ -470,7 +481,7 @@ public Map<String,String> encode(Map<String,String> map2Enc){
 		String value = map2Enc.get(key);
 		value = encode(value);
 		map2Enc.put(key,value);
-		LOG.info("key: " + key);
+		LOG.fine("key: " + key);
 	}
 	return map2Enc;
 }
@@ -496,11 +507,36 @@ public static String filterNonISO(String inString) {
 		result = cbuf.toString();
 	} catch (CharacterCodingException cce) {
 		String errorMessage = "Exception during character encoding/decoding: " + cce.getMessage();
+		LOG.log(Level.FINE,errorMessage, cce);
+	}
+
+	return result;	
+}
+public static String filterNonASCII(String inString) {
+	// Create the encoder and decoder for the character encoding
+	Charset charset = Charset.forName("US-ASCII");
+	CharsetDecoder decoder = charset.newDecoder();
+	CharsetEncoder encoder = charset.newEncoder();
+	// This line is the key to removing "unmappable" characters.
+	encoder.onUnmappableCharacter(CodingErrorAction.IGNORE);
+	String result = inString;
+
+	try {
+		// Convert a string to bytes in a ByteBuffer
+		ByteBuffer bbuf = encoder.encode(CharBuffer.wrap(inString));
+
+		// Convert bytes in a ByteBuffer to a character ByteBuffer and then to a string.
+		CharBuffer cbuf = decoder.decode(bbuf);
+		result = cbuf.toString();
+	} catch (CharacterCodingException cce) {
+		String errorMessage = "Exception during character encoding/decoding: " + cce.getMessage();
 		LOG.log(Level.SEVERE,errorMessage, cce);
 	}
 
 	return result;	
 }
+
+
 
 
  
@@ -773,7 +809,7 @@ private String switch2email(String name) {
 
 	public String updateWaveletOnEmailSent(Wavelet wavelet, int activityType, String recipients, String subject) {
 		
-		subject = filterNonISO(subject);
+		subject = filterNonASCII(subject);
 		String appdomain = System.getProperty("APP_DOMAIN");
 		Date today = new Date(System.currentTimeMillis());
 		SimpleDateFormat dateFormat = new SimpleDateFormat("MMM-dd");
@@ -929,5 +965,17 @@ private String switch2email(String name) {
 			totalSize += attachment.getData().length;
 		}
 		return totalSize;
+	}
+	
+	public static void main(String[] args) {
+		String add = "Yuri Zelikov";
+		String email = MailUtils.stripRecipientForEmail(add);
+		try {
+			System.out.println(MimeUtility.decodeWord(add));
+		} catch (ParseException e) {
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
 	}
 }

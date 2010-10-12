@@ -14,6 +14,9 @@ import com.google.gwt.i18n.client.Constants.DefaultStringValue;
  */
 public interface ConstantsImpl extends Constants {
 
+	String doneStr();
+	String loadingContacts();
+	String refreshContacts();
 	String emailSentStr();
 	String sendingEmailStr();
 	String contentSaveSuccess();

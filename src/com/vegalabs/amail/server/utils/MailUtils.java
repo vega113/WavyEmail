@@ -18,6 +18,8 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
+import javax.mail.internet.MimeUtility;
+
 import com.google.wave.api.Attachment;
 import com.google.wave.api.Element;
 import com.google.wave.api.Blip;
@@ -132,6 +134,24 @@ public class MailUtils {
 				LOG.log(Level.SEVERE, "to: " + to + ", subject: " + subject + ", reason" + reason , e);
 			} catch (MessagingException e) {
 				LOG.log(Level.SEVERE, "to: " + to + ", subject: " + subject + ", reason" + reason , e);
+			} catch (Exception e) {
+				LOG.log(Level.SEVERE, "to: " + to + ", subject: " + subject + ", reason" + reason , e);
 			}
+		}
+		
+		public static String decodeEmailAddress(String fromFullEmail) {
+			try{
+				LOG.info("trying to fix: " +fromFullEmail );
+				String fromName = MimeUtility.decodeWord(MailUtils.stripRecipientForName(fromFullEmail));
+				LOG.info("fromName: " + fromFullEmail);
+				String fromMail = MailUtils.stripRecipientForEmail(fromFullEmail);
+				LOG.info("fromMail: " + fromMail);
+				fromFullEmail = fromName + "<" + fromMail + ">";
+				LOG.info("fixed fromFullEmail: " + fromFullEmail);
+			}catch(Exception e){
+				LOG.log(Level.WARNING, "", e);
+			}
+			
+			return fromFullEmail;
 		}
 }

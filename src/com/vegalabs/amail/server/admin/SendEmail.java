@@ -1,16 +1,20 @@
 package com.vegalabs.amail.server.admin;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.json.JSONException;
 import com.vegalabs.amail.server.WaveMailRobot;
 import com.vegalabs.amail.server.dao.EmailEventDao;
+import com.vegalabs.amail.server.dao.EmailFailedEventDao;
 import com.vegalabs.amail.server.dao.EmailThreadDao;
 import com.vegalabs.amail.server.dao.PersonDao;
 import com.vegalabs.amail.server.data.FullWaveAddress;
 import com.vegalabs.amail.server.model.EmailEvent;
+import com.vegalabs.amail.server.model.EmailFailedEvent;
 import com.vegalabs.amail.server.model.EmailThread;
 import com.vegalabs.amail.server.model.Person;
 import com.vegalabs.amail.server.utils.MailUtils;
@@ -50,14 +54,16 @@ public class SendEmail extends Command {
   private EmailEventDao emailEventDao;
   private PersonDao personDao;
   private EmailThreadDao emailThreadDao;
+  private static EmailFailedEventDao  emailFailedEventDao;
 
   @Inject
-  public SendEmail(Util util, WaveMailRobot robot, EmailEventDao emailEventDao, PersonDao personDao,EmailThreadDao emailThreadDao) {
+  public SendEmail(Util util, WaveMailRobot robot, EmailEventDao emailEventDao, PersonDao personDao,EmailThreadDao emailThreadDao,EmailFailedEventDao  emailFailedEventDao) {
     this.util = util;
     this.robot = robot;
     this.emailEventDao = emailEventDao;
     this.personDao = personDao;
     this.emailThreadDao = emailThreadDao;
+    this.emailFailedEventDao = emailFailedEventDao;
   }
 
   @Override
@@ -246,7 +252,11 @@ private String findBlipIdByGadgetUuid(String uuid, Wavelet wavelet) {
 		// Create the message part 
 		  MimeBodyPart messageBodyTxtPart = new MimeBodyPart();
 		  // Fill the message
-		  messageBodyTxtPart.setContent(emailEvent.getMsgBody().getValue(), "text/plain;");
+		  String msgBody = emailEvent.getMsgBody().getValue();
+		  if(emailEvent.getMsgBody().getValue() == null || emailEvent.getMsgBody().getValue().equals("")){
+			  msgBody = " ";
+		  }
+		  messageBodyTxtPart.setContent(msgBody, "text/plain;");
 		  multipart.addBodyPart(messageBodyTxtPart);
 
 
@@ -275,19 +285,14 @@ private String findBlipIdByGadgetUuid(String uuid, Wavelet wavelet) {
 		  msg.setSentDate(emailEvent.getSentDate());
 		  Transport.send(msg);
 
-	  } catch (AddressException e) {
+	  } catch (Exception e) {
 		  LOG.log(Level.SEVERE, "person id: " + person.getId() + ", emailEvent id:" + emailEvent.getId() + ", msgBody: " + emailEvent.getMsgBody(), e);
-		  throw new IllegalArgumentException(e);
-	  } catch (javax.mail.SendFailedException e) {
-		  LOG.log(Level.SEVERE, "person id: " + person.getId() + ", emailEvent id:" + emailEvent.getId() + ", msgBody: " + emailEvent.getMsgBody(), e);
-		  throw new IllegalArgumentException(e);
-	  }catch (MessagingException e) {
-		  LOG.log(Level.SEVERE, "person id: " + person.getId() + ", emailEvent id:" + emailEvent.getId() + ", msgBody: " + emailEvent.getMsgBody(), e);
-		  throw new IllegalArgumentException(e);
-	  } catch (UnsupportedEncodingException e) {
-		  LOG.log(Level.SEVERE, "person id: " + person.getId() + ", emailEvent id:" + emailEvent.getId() + ", msgBody: " + emailEvent.getMsgBody(), e);
-		  throw new IllegalArgumentException(e);
-	  }
+		  StringWriter exceptionStackTraceWriter = new StringWriter();
+			 e.printStackTrace(new PrintWriter(exceptionStackTraceWriter));
+		  EmailFailedEvent emailFailedEvent = new EmailFailedEvent(person.getWavemail(), person.getId(), emailEvent.getId(), e.getMessage(), new Text(exceptionStackTraceWriter.toString()));
+		  emailFailedEvent.setAction("SEND");
+			 emailFailedEventDao.save(emailFailedEvent);
+	  } 
   }
 
 	public static void waveAttachment2Mpart(List<Attachment> attachments,

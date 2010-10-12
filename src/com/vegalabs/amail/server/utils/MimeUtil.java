@@ -206,18 +206,18 @@ public class MimeUtil {
 		return charset;
 	}
 
-	public static String getContent(InputStream rawInputStream, String contentType, String mimeEncoding) {
+	public static String getContent(InputStream rawInputStream,InputStream inputStream, String contentType, String mimeEncoding) {
 		String content = null;
 		try {
 			content =  processRawInputStream(rawInputStream, contentType, mimeEncoding);
 		} catch (UnsupportedEncodingException e) {
 			LOG.log(Level.WARNING, (String) content, e);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			LOG.log(Level.WARNING, (String) content, e);
 			try {
-				return new String(getBytes(rawInputStream));
+				content =  new String(getBytes(inputStream));
 			} catch (IOException e1) {
-				LOG.log(Level.WARNING, (String) content, e1);
+				LOG.log(Level.SEVERE, (String) content, e1);
 			}
 		}
 		

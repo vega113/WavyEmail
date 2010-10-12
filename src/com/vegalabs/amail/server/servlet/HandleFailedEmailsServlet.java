@@ -43,6 +43,9 @@ public class HandleFailedEmailsServlet extends HttpServlet {
 		LOG.info("entering");
 		List<EmailFailedEvent> failedEmailsList = emailFailedEventDao.getEmailFailedEventsByStatus("FAILED");
 		for(EmailFailedEvent emailFailedEvent : failedEmailsList){
+			if(emailFailedEvent.getAction() != null && !"RECEIVE".equals(emailFailedEvent.getAction())){
+				continue;
+			}
 			report.append("\n");
 			Long personId = emailFailedEvent.getPersonId();
 			Long emailEventId = emailFailedEvent.getEmailEventId();
@@ -54,8 +57,10 @@ public class HandleFailedEmailsServlet extends HttpServlet {
 				//TODO if retryCount more than limit - declare as bounced
 				PersistenceManager pm = pmf.getPersistenceManager();
 				Person person = pm.getObjectById(Person.class, personId);
+				person = pm.detachCopy(person);
 				
 				EmailEvent emailEvent = pm.getObjectById(EmailEvent.class, emailEventId);
+				emailEvent = pm.detachCopy(emailEvent);
 				String eventReport = "retry for "  + person.getWavemail() + ", Subject: " + emailEvent.getSubject() + ", retryCount: " + emailFailedEvent.getRetryCount();
 				LOG.info(eventReport);
 				report.append(eventReport);

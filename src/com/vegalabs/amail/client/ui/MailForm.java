@@ -358,11 +358,15 @@ public class MailForm extends Composite {
 			
 			@Override
 			public void onClick(ClickEvent event) {
-				Window.open("http://" + constants.appDomain() + ".appspot.com/LoginServlet?user=" + utils.retrUserId(), "", "");
-//				Window.open("http://localhost:8888/LoginServlet?user=" + utils.retrHostId(), "", "");
-				utils.putToState("contacts#" + utils.retrUserId(),null );
-				concatinatedContacts = null;
-				
+				if(importContactsBtn.getText().equals(constants.importCnts())){
+					Window.open("http://" + constants.appDomain() + ".appspot.com/LoginServlet?user=" + utils.retrUserId(), "", "");
+//					Window.open("http://localhost:8888/LoginServlet?user=" + utils.retrHostId(), "", "");
+					utils.putToState("contacts#" + utils.retrUserId(),null );
+					concatinatedContacts = null;
+					importContactsBtn.setText(constants.refreshContacts());
+				}else if(importContactsBtn.getText().equals(constants.refreshContacts())){
+					loadContacts();
+				}
 			}
 		});
 	}
@@ -386,6 +390,8 @@ public class MailForm extends Composite {
 		
 		@Override
 		public void onSuccess(JSONValue result) {
+			utils.dismissStaticMessage();
+			utils.showSuccessMessage(constants.doneStr(), 3);
 			failuresCount = 0;
 			String contacts = result.isObject().get("contacts").isString().stringValue();
 			concatinatedContacts = decode(contacts);
@@ -393,22 +399,24 @@ public class MailForm extends Composite {
 			loadingPanel.setVisible(false);
 			mainMailPanel.setVisible(true);
 			init();
+			img0.setVisible(false);
 		}
 		
 		@Override
 		public void onFailure(Throwable caught) {
-			Log.error("loadContacts userId: " + utils.retrUserId(), caught);
+			Log.warn ("loadContacts userId: " + utils.retrUserId(), caught);
 			failuresCount++;
 			if(failuresCount < 2){
 				loadContacts();
 			}else{
+				utils.dismissStaticMessage();
 				utils.alert(caught.getMessage());
 				utils.putToPrivateSate("contacts#" + utils.retrUserId(), "");
 				loadingPanel.setVisible(false);
 				mainMailPanel.setVisible(true);
 				init();
 			}
-			
+			img0.setVisible(false);
 		}
 	}
 	
@@ -467,6 +475,8 @@ private class LoadContactsAndContentAsyncCallback implements AsyncCallback<JSONV
 		final String userId = utils.retrUserId();
 		try {
 			Log.info("Loading contacts for: " + userId);
+			utils.showStaticMessage(constants.loadingContacts());
+			img0.setVisible(true);
 			service.loadContacts(userId, new LoadContactsAsyncCallback());
 		} catch (RequestException e) {
 			Log.error("loadContacts userId: " + userId , e);
@@ -525,6 +535,7 @@ private class LoadContactsAndContentAsyncCallback implements AsyncCallback<JSONV
 			oracleHolderCntPnl.add(dummyTextBox);
 		}
 		
+		importContactsBtn.setText(constants.importCnts());
 		
 		
 		if( "READ".equals(mode)){//email received from some sender

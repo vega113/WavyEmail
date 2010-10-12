@@ -1,8 +1,10 @@
 package com.vegalabs.amail.server.model;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -178,5 +180,59 @@ public class EmailEvent {
 
 	public void setCc(List<String> cc) {
 		this.cc = cc;
+	}
+
+	@Override
+	public String toString() {
+		final int maxLen = 10;
+		StringBuilder builder = new StringBuilder();
+		builder.append("EmailEvent [id=");
+		builder.append(id);
+		builder.append(", created=");
+		builder.append(created);
+		builder.append(", activityType=");
+		builder.append(activityType);
+		builder.append(", subject=");
+		builder.append(subject);
+		builder.append(", msgBody=");
+		builder.append(msgBody);
+		builder.append(", from=");
+		builder.append(from != null ? toString(from, maxLen) : null);
+		builder.append(", to=");
+		builder.append(to != null ? toString(to, maxLen) : null);
+		builder.append(", cc=");
+		builder.append(cc != null ? toString(cc, maxLen) : null);
+		builder.append(", bcc=");
+		builder.append(bcc != null ? toString(bcc, maxLen) : null);
+		builder.append(", source=");
+		builder.append(source);
+		builder.append(", subjectHash=");
+		builder.append(subjectHash);
+		builder.append(", msgBodyHash=");
+		builder.append(msgBodyHash);
+		builder.append(", sentDate=");
+		builder.append(sentDate);
+		builder.append(", fullWaveIdPerUserMap=");
+		builder.append(fullWaveIdPerUserMap != null ? toString(
+				fullWaveIdPerUserMap.entrySet(), maxLen) : null);
+		builder.append(", attachments=");
+		builder.append(attachments != null ? toString(attachments, maxLen)
+				: null);
+		builder.append("]");
+		return builder.toString();
+	}
+
+	private String toString(Collection<?> collection, int maxLen) {
+		StringBuilder builder = new StringBuilder();
+		builder.append("[");
+		int i = 0;
+		for (Iterator<?> iterator = collection.iterator(); iterator.hasNext()
+				&& i < maxLen; i++) {
+			if (i > 0)
+				builder.append(", ");
+			builder.append(iterator.next());
+		}
+		builder.append("]");
+		return builder.toString();
 	}
 }

@@ -53,7 +53,7 @@ public class SuccessMessageServlet extends HttpServlet {
 				resp.getWriter().flush();
 			}else{
 				resp.getWriter().print("<html><head><title>Contacts for " + principal + " are  successfully imported!</title></head><body>");
-				resp.getWriter().print("<h4><br>Please reload the gadget for the change to take effect.<br>  You can close this window now.</h4> ");
+				resp.getWriter().print("<h4><br>Please click on the \"Reload contacts\" button for the changes to take effect.<br>  You can close this window now.</h4> ");
 				resp.getWriter().print("</body></html>");
 				resp.getWriter().flush();
 			}

@@ -42,6 +42,9 @@ public class EmailFailedEvent {
 	@Persistent
 	@Expose
 	Text exceptionStackTrace;
+	@Persistent
+	@Expose
+	String action;
 	public Date getCreated() {
 		return created;
 	}
@@ -71,6 +74,7 @@ public class EmailFailedEvent {
 		lastUpdated = created;
 		status = "FAILED";
 		retryCount = 0;
+		action = "RECEIVE";
 	}
 	public Long getPersonId() {
 		return personId;
@@ -131,6 +135,12 @@ public class EmailFailedEvent {
 	}
 	public void setLastUpdated(Date lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+	public String getAction() {
+		return action;
+	}
+	public void setAction(String action) {
+		this.action = action;
 	}
 	
 }

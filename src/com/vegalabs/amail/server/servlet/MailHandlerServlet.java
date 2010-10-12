@@ -84,42 +84,48 @@ public class MailHandlerServlet extends HttpServlet {
 			MimeMessage message = new MimeMessage(session, msgInputStream);
 			subject = message.getSubject();
 			
+			from =  MailUtils.decodeEmailAddress(message.getFrom()[0].toString());
 			
-			
-			InternetAddress[] recipientsAddresses = (InternetAddress[])message.getRecipients (RecipientType.TO);
+			InternetAddress[] recipientsAddresses = null;
 			Set<String> recipientsSet = new LinkedHashSet<String>();
-			if(recipientsAddresses != null){
-				for(InternetAddress address : recipientsAddresses){
-					recipientsSet.add(address.getAddress());
+			try{
+				recipientsAddresses = (InternetAddress[])message.getRecipients (RecipientType.TO);
+				if(recipientsAddresses != null){
+					for(InternetAddress address : recipientsAddresses){
+						recipientsSet.add(address.getAddress());
+					}
 				}
-			}
-			Set<String> ccSet = new LinkedHashSet<String>();
-			recipientsAddresses = (InternetAddress[])message.getRecipients (RecipientType.CC);
-			if(recipientsAddresses != null){
-				for(InternetAddress address : recipientsAddresses){
-					ccSet.add(address.getAddress());
-				}
-			}
-			recipientsAddresses = (InternetAddress[])message.getRecipients (RecipientType.BCC);
-			Set<String> bccSet = new LinkedHashSet<String>();
-			if(recipientsAddresses != null){
-				for(InternetAddress address : recipientsAddresses){
-					bccSet.add(address.getAddress());
-				}
+			}catch (Exception e) {
+				LOG.log(Level.WARNING, "exception!", e);
 			}
 			
-			from = message.getFrom()[0].toString();
+			Set<String> ccSet = new LinkedHashSet<String>();
+			try{
+				
+				recipientsAddresses = (InternetAddress[])message.getRecipients (RecipientType.CC);
+				if(recipientsAddresses != null){
+					for(InternetAddress address : recipientsAddresses){
+						ccSet.add(address.getAddress());
+					}
+				}
+			}catch (Exception e) {
+				LOG.log(Level.WARNING, "exception!", e);
+			}
+			Set<String> bccSet = new LinkedHashSet<String>();
+			
+			
+			
 			 long lengthInBytes = robot.calcAttachmentsSize(attachmentsList);
 				if(lengthInBytes + msgBody.toString().getBytes().length > 1024*1024*1024){
-					failureReason = "Message size is too big, maximum size is 1MB!";
+					failureReason = "Message size is too big, maximum size is 1MB! Message will be delivered without attachments!";
 					MailUtils.sendDeliveryFailedMail(from,subject,failureReason);
-					throw new IllegalArgumentException(failureReason);
+					attachmentsList.clear();
 				}
 				
 				handleMessage(msgBody, attachmentsList, message);
 			
 			String msgBodyStr = msgBody.toString();
-			robot.recieveMail( msgBodyStr , subject,realRecipient,recipientsSet, ccSet, bccSet, message.getFrom()[0].toString(),attachmentsList, message.getSentDate());
+			robot.recieveMail( msgBodyStr , subject,realRecipient,recipientsSet, ccSet, bccSet, from,attachmentsList, message.getSentDate());
 			
 		} catch (MessagingException e) {
 			failureReason = e.getMessage();
@@ -138,7 +144,8 @@ public class MailHandlerServlet extends HttpServlet {
 		String msgContentType = message.getContentType();
 		LOG.info("msgContentType: " + msgContentType);
 		if(msgContentType.contains("text")){
-			msgBody.append(getContent(message.getRawInputStream(),message.getContentType(), message.getEncoding()));
+			String encoding = message.getEncoding();
+			msgBody.append(getContent(message.getRawInputStream(),message.getInputStream(), message.getContentType(), encoding));
 		}else if(msgContentType.contains("multipart")){
 			Multipart mp = (Multipart)message.getContent();
 			depth = 0;
@@ -262,9 +269,9 @@ public class MailHandlerServlet extends HttpServlet {
 
 	}
 	
-	protected Object getContent(InputStream rawInputStream, String contentType, String mimeEncoding) throws Exception{
+	protected Object getContent(InputStream rawInputStream,InputStream inputStream, String contentType, String mimeEncoding) throws Exception{
 		String content = null;
-		content =  (String)MimeUtil.getContent(rawInputStream, contentType,mimeEncoding);
+		content =  (String)MimeUtil.getContent(rawInputStream,inputStream, contentType,mimeEncoding);
 		return content;
 
 	}
