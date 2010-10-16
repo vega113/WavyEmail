@@ -610,7 +610,11 @@ private class LoadContactsAndContentAsyncCallback implements AsyncCallback<JSONV
 		
 		if(msgBody != null){
 			msgBody = decode(msgBody);
-			contentRichTextArea.setHTML(msgBody);
+			if(msgBody.startsWith("#text#")){
+				contentRichTextArea.setText(msgBody);
+			}else{
+				contentRichTextArea.setHTML(msgBody);
+			}
 		}
 		
 		String to = utils.retrFromState("toAll");

@@ -83,10 +83,8 @@
 								</g:HorizontalPanel>
 							</g:CaptionPanel>
 							<g:CaptionPanel width='{constants.basicWidthStr}' ui:field="contentRichTextAreaCptnPnl">
-								<g:ScrollPanel >
 									<g:RichTextArea width='{constants.basicWidthStr}'
 									height='420px' ui:field="contentRichTextArea"  stylePrimaryName='{res.globalCSS.whiteRow}'></g:RichTextArea>
-								</g:ScrollPanel>
 							</g:CaptionPanel>
 						</g:VerticalPanel>
 					</g:HorizontalPanel>

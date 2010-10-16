@@ -388,7 +388,7 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 	if(!fromMailStripped.contains("@")){
 		LOG.severe("fromMailStripped: " + fromMailStripped + ", fromFullEmail: " + fromFullEmail);
 	}
-	String proxyFor = fromMailStripped.replace("@", "-").trim();
+	String proxyFor = fromMailStripped.replace("@", "-").replace("<", "").replace(">", "").trim();
 	LOG.info("proxyFor: " + proxyFor + ", fromFullEmail: " + fromFullEmail);
 	if(threadBlipAddress == null){
 		threadWavelet = newWave(domain, new LinkedHashSet<String>() ,"NEW_EMAIL_RECEIVED",proxyFor,getRpcServerUrl());
@@ -404,7 +404,7 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 	String subjectTitle = subject;
 	subjectTitle = filterNonASCII(subject);
 //	subjectTitle = MailUtils.toUTF8(subjectTitle, null);
-	threadWavelet.setTitle("Email: " + subjectTitle);
+	threadWavelet.setTitle("eMail: " + subjectTitle);
 	 
 	 //add participants to it
 	 threadWavelet.getParticipants().add(waveAddressRecipient);

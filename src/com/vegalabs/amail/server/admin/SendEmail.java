@@ -244,6 +244,10 @@ private String findBlipIdByGadgetUuid(String uuid, Wavelet wavelet) {
 						  new InternetAddress(recipient));
 			  }
 		  }
+		  String subject = emailEvent.getSubject();
+		  if(subject == null || subject.equals("")){
+			  subject = " ";
+		  }
 		  msg.setSubject(emailEvent.getSubject());
 		  
 		  

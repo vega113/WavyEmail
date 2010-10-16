@@ -181,25 +181,26 @@ public class MailHandlerServlet extends HttpServlet {
 			}else if(contentType.contains("text/html")){
 				msgBodyPartHtml = (String)getContent(part); 
 				boolean isDetectedProblemWithHtml = msgBodyPartHtml.contains("\u0000");
-				msgBodyPartHtml = msgBodyPartHtml.replaceAll("\t", " ").replaceAll("\r", "").replaceAll("\n", "").replaceAll("\b", "").replaceAll("\f", "").replaceAll("\u0000", " ");
-				LOG.log(Level.INFO, "get text/html cleaned: " + msgBodyPartHtml);
+				msgBodyPartHtml = msgBodyPartHtml.replaceAll("\u0000", " ");
+				LOG.log(Level.FINE, "get text/html cleaned: " + msgBodyPartHtml);
 				if(msgBodyPartPlain != null && msgBodyPartPlain.length() > 0 && !isDetectedProblemWithHtml){
 					int sbLength = msgBodyPartPlain.length();
 					int plainMsgBodyPartLength = msgBodyPartPlain.length();
 					msgBody = msgBody.delete(sbLength - plainMsgBodyPartLength, sbLength);
 					msgBody.append(msgBodyPartHtml);
-					LOG.info("appended html");
+					LOG.fine("appended html");
 				}
 			}else if(contentType.contains("text/plain") && msgBodyPartHtml == null){
 				msgBodyPartPlain = (String) getContent(part);
-				msgBodyPartPlain = msgBodyPartPlain.replaceAll("\u0000", " ");
-				LOG.log(Level.INFO, "appended text/plain: " + getContent(part));
+				msgBodyPartPlain.replaceAll("\r", "\n");
+				msgBodyPartPlain = "#text#" + msgBodyPartPlain;
+				LOG.log(Level.FINE, "appended text/plain: " + getContent(part));
 				msgBody.append(msgBodyPartPlain);
 			}else if(contentType.contains("message/rfc822")){
 				InputStream embeddedMsgInputStream = part.getInputStream();
 				MimeMessage embeddedMessage = new MimeMessage(session, embeddedMsgInputStream);
 				handleMessage(msgBody, attachmentsList, embeddedMessage);
-				LOG.info("handling message/rfc822");
+				LOG.fine("handling message/rfc822");
 			}else if(contentType.contains("multipart/alternative")){
 				Multipart childMp = (Multipart)part.getContent();
 				handleMPart(msgBody, attachmentsList, childMp,subject);
