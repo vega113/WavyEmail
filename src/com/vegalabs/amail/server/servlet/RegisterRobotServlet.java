@@ -18,8 +18,8 @@ public class RegisterRobotServlet extends HttpServlet {
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
 		LOG.info("RegisterRobotServlet.doGet");
-		String verificationToken = "AOijR2dLavenB5EYtDMFI11DFK2MH_c_6HAgcJsOvncq8McX2FNCisWOjbvxFu2-gx3Zpw91YqnkM5ZswYj6yrLRvf7qIfyBW60g19D3MzbSoa2eNIeDL3G-B3Qb_2QBwkyxp_BA49iWg6Xb2FsDY9L5qhXClrIaCw==";
-		String securityToken = "7543";
+		String verificationToken = "AOijR2f5RywlQbiGHTG2DU3W4QM61DuaS0AAN28XCcyUZeT8-2F4-DmE0-6R-ASYde2TrcrovI39-ff4BD6FgWVOO6gSGlZcA4HOGbSXdHEgDBr1IgdFC7dfkC51R5JpPnsP93oqDm8ZDOajqfx6nmEo0wgy5n6cIQ==";
+		String securityToken = "861";
 		String securityTokenFromServer = req.getParameter("st");
 		if(securityToken.equals(securityTokenFromServer)){
 			PrintWriter pw = resp.getWriter();

@@ -26,6 +26,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.net.QuotedPrintableCodec;
+import org.apache.mailet.base.FlowedMessageUtils;
 
 import com.sun.xml.internal.messaging.saaj.util.ByteInputStream;
 
@@ -121,7 +122,7 @@ public class MimeUtil {
 					String contentType = mimeBodyPart.getContentType();
 					String mimeEncoding = mimeBodyPart.getEncoding();
 					
-					LOG.info("mimeEncoding: " + mimeEncoding);
+					LOG.fine("mimeEncoding: " + mimeEncoding);
 					
 					content = processRawInputStream(rawInputStream,
 							contentType, mimeEncoding);
@@ -132,7 +133,7 @@ public class MimeUtil {
 					}
 				}
 			}catch(Exception e){
-				LOG.log(Level.WARNING, "in catch after mime: ",e);
+				LOG.log(Level.FINE, "in catch after mime: ",e);
 				if(content == null || content.length() == 0 ){
 					content = new String(getBytes(is));
 					LOG.warning("content from bytes: " + content);
@@ -148,7 +149,7 @@ public class MimeUtil {
 				content = new String(out);
 				LOG.info("in getContent:decodeQuotedPrintable encoding: " + encoding + ", content: " + content);
 			} catch (Exception e1) {
-				LOG.log(Level.WARNING, (String) content, e1);
+				LOG.log(Level.FINE, (String) content, e1);
 				is = MimeUtility.decode(is,encoding);
 				byte[] out = getBytes(is);
 				content = new String(out);
@@ -211,11 +212,14 @@ public class MimeUtil {
 		try {
 			content =  processRawInputStream(rawInputStream, contentType, mimeEncoding);
 		} catch (UnsupportedEncodingException e) {
-			LOG.log(Level.WARNING, (String) content, e);
+			LOG.log(Level.FINE, (String) content, e);
 		} catch (Exception e) {
-			LOG.log(Level.WARNING, (String) content, e);
+			LOG.log(Level.FINE, (String) content, e);
 			try {
 				content =  new String(getBytes(inputStream));
+				if(contentType.contains("text/plain") && contentType.contains("format=flowed")){
+					content = FlowedMessageUtils.deflow(content, contentType.contains("delsp=yes"));
+				}
 			} catch (IOException e1) {
 				LOG.log(Level.SEVERE, (String) content, e1);
 			}

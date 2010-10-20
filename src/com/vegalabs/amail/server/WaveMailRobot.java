@@ -389,6 +389,7 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 		LOG.severe("fromMailStripped: " + fromMailStripped + ", fromFullEmail: " + fromFullEmail);
 	}
 	String proxyFor = fromMailStripped.replace("@", "-").replace("<", "").replace(">", "").trim();
+	proxyFor = removeWordInParenthesis(proxyFor);
 	LOG.info("proxyFor: " + proxyFor + ", fromFullEmail: " + fromFullEmail);
 	if(threadBlipAddress == null){
 		threadWavelet = newWave(domain, new LinkedHashSet<String>() ,"NEW_EMAIL_RECEIVED",proxyFor,getRpcServerUrl());
@@ -444,6 +445,17 @@ private FullWaveAddress sendNewEmailToRecipient(String content, String subject,S
 	  return newBlipFullAddress;
 }
 
+
+
+
+private String removeWordInParenthesis(String proxyFor) {
+	String out = proxyFor;
+	if(out.contains("(")){
+		int start = out.indexOf("(");
+		out = out.substring(0,start );
+	}
+	return out;
+}
 
 
 

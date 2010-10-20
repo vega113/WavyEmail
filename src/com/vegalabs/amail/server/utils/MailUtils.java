@@ -131,25 +131,25 @@ public class MailUtils {
 				  msg.setSentDate(new Date());
 				  Transport.send(msg);
 			} catch (AddressException e) {
-				LOG.log(Level.SEVERE, "to: " + to + ", subject: " + subject + ", reason" + reason , e);
+				LOG.log(Level.SEVERE, "Delivery notification failed!!!! to: " + to + ", subject: " + subject + ", reason" + reason , e);
 			} catch (MessagingException e) {
-				LOG.log(Level.SEVERE, "to: " + to + ", subject: " + subject + ", reason" + reason , e);
+				LOG.log(Level.SEVERE, "Delivery notification failed!!!! to: " + to + ", subject: " + subject + ", reason" + reason , e);
 			} catch (Exception e) {
-				LOG.log(Level.SEVERE, "to: " + to + ", subject: " + subject + ", reason" + reason , e);
+				LOG.log(Level.SEVERE, "Delivery notification failed!!!! to: " + to + ", subject: " + subject + ", reason" + reason , e);
 			}
 		}
 		
 		public static String decodeEmailAddress(String fromFullEmail) {
 			try{
-				LOG.info("trying to fix: " +fromFullEmail );
+				LOG.fine("trying to fix: " +fromFullEmail );
 				String fromName = MimeUtility.decodeWord(MailUtils.stripRecipientForName(fromFullEmail));
-				LOG.info("fromName: " + fromFullEmail);
+				LOG.fine("fromName: " + fromFullEmail);
 				String fromMail = MailUtils.stripRecipientForEmail(fromFullEmail);
-				LOG.info("fromMail: " + fromMail);
+				LOG.fine("fromMail: " + fromMail);
 				fromFullEmail = fromName + "<" + fromMail + ">";
-				LOG.info("fixed fromFullEmail: " + fromFullEmail);
+				LOG.fine("fixed fromFullEmail: " + fromFullEmail);
 			}catch(Exception e){
-				LOG.log(Level.WARNING, "", e);
+				LOG.log(Level.FINE, "", e);
 			}
 			
 			return fromFullEmail;

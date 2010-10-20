@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -46,7 +49,9 @@ import com.vegalabs.amail.server.utils.MimeUtil;
 
 @Singleton
 public class MailHandlerServlet extends HttpServlet {
-	 Logger LOG = Logger.getLogger(MailHandlerServlet.class.getName());
+	 private static final int MEGA_BYTE = 1048576;
+
+	Logger LOG = Logger.getLogger(MailHandlerServlet.class.getName());
 	 
 	 protected WaveMailRobot robot;
 	 int depth = 0;
@@ -68,7 +73,7 @@ public class MailHandlerServlet extends HttpServlet {
 		
 		
 		String requestURI = req.getRequestURI();
-		LOG.info("requestURI: " + requestURI);
+		LOG.fine("requestURI: " + requestURI);
 		String realRecipient = requestURI.substring("/_ah/mail/".length());
 		
 		PrintWriter writer = resp.getWriter();
@@ -115,17 +120,52 @@ public class MailHandlerServlet extends HttpServlet {
 			
 			
 			
-			 long lengthInBytes = robot.calcAttachmentsSize(attachmentsList);
-				if(lengthInBytes + msgBody.toString().getBytes().length > 1024*1024*1024){
-					failureReason = "Message size is too big, maximum size is 1MB! Message will be delivered without attachments!";
-					MailUtils.sendDeliveryFailedMail(from,subject,failureReason);
-					attachmentsList.clear();
-				}
-				
-				handleMessage(msgBody, attachmentsList, message);
 			
-			String msgBodyStr = msgBody.toString();
-			robot.recieveMail( msgBodyStr , subject,realRecipient,recipientsSet, ccSet, bccSet, from,attachmentsList, message.getSentDate());
+			 
+			 handleMessage(msgBody, attachmentsList, message);
+
+			 String msgBodyStr = msgBody.toString();
+			
+			 long lengthInBytes = robot.calcAttachmentsSize(attachmentsList);
+			 List<Attachment> fixedAttachmentsList = new ArrayList<Attachment>();
+			 Collections.sort(attachmentsList, new Comparator<Attachment>() {
+
+				@Override
+				public int compare(Attachment o1, Attachment o2) {
+					long diff = o1.getData().length - o2.getData().length;
+					LOG.info(o1.getCaption() + " : " + o1.getData().length + " - " +  o2.getCaption() + " : " + o2.getData().length + ", diff: " + diff);
+					return (int)diff;
+				}
+			 }
+			);
+			 // need to implement knapsack algorithm here //TODO
+			 LOG.info("Attachment size in bytes: " + lengthInBytes);
+			 StringBuilder sbNonIncludedAttachmentsSB = new StringBuilder();
+			 if(lengthInBytes + msgBody.toString().getBytes().length > MEGA_BYTE){
+				 failureReason = "Message size is too big, maximum size is 1MB! Message will be delivered without attachments!" + "Attachment size in bytes: " + lengthInBytes + ", subject: " + subject + ", from: " + from;
+//				 MailUtils.sendDeliveryFailedMail(from,subject,failureReason);
+				 writer.print(failureReason);
+				
+				 sbNonIncludedAttachmentsSB.append("<div style='color : red'><b>Warning by Wavy eMail robot: <b><p>");
+				 long totalCurrentSize = 0;
+				 for(Attachment attachment : attachmentsList){
+					 long currentSize = attachment.getData().length;
+					 totalCurrentSize += currentSize;
+					 if(totalCurrentSize > MEGA_BYTE){
+						 sbNonIncludedAttachmentsSB.append("The following attachments were not delivered to you: " +  attachment.getCaption() + ", size:  " + String.format ("%4.2f", (float)(attachment.getData().length / 1024)) + " KB" + "<br>");
+						 totalCurrentSize -= currentSize;
+					 }else{
+						 fixedAttachmentsList.add(attachment);
+					 }
+					 
+				 }
+				 sbNonIncludedAttachmentsSB.append("Maximum email size is 1MB!");
+				 sbNonIncludedAttachmentsSB.append("</p></div><br>");
+				 attachmentsList = fixedAttachmentsList;
+				 msgBodyStr = sbNonIncludedAttachmentsSB.toString() + msgBodyStr;
+			 }
+			 
+			 robot.recieveMail( msgBodyStr , subject,realRecipient,recipientsSet, ccSet, bccSet, from,attachmentsList, message.getSentDate());
 			
 		} catch (MessagingException e) {
 			failureReason = e.getMessage();
@@ -142,7 +182,7 @@ public class MailHandlerServlet extends HttpServlet {
 			List<Attachment> attachmentsList, MimeMessage message)
 			throws MessagingException, IOException, Exception {
 		String msgContentType = message.getContentType();
-		LOG.info("msgContentType: " + msgContentType);
+		LOG.fine("msgContentType: " + msgContentType);
 		if(msgContentType.contains("text")){
 			String encoding = message.getEncoding();
 			msgBody.append(getContent(message.getRawInputStream(),message.getInputStream(), message.getContentType(), encoding));
@@ -161,17 +201,17 @@ public class MailHandlerServlet extends HttpServlet {
 		depth++;
 		String msgBodyPartPlain = null;
 		String msgBodyPartHtml = null;
-		LOG.info("MultiPart total " + mp.getCount() + " parts, ContentType: " + mp.getContentType() + ", depth: " + depth);
+		LOG.fine("MultiPart total " + mp.getCount() + " parts, ContentType: " + mp.getContentType() + ", depth: " + depth);
 		for (int i=0, n= mp.getCount(); i<n; i++) {
 			Attachment attachment = null;
 			BodyPart part = mp.getBodyPart(i);
-			LOG.info("part#" + i + ", part: " + part);
+			LOG.fine("part#" + i + ", part: " + part);
 			
 			String contentType = part.getContentType();
 			
-			LOG.info("body contentType: " + contentType);
+			LOG.fine("body contentType: " + contentType);
 			String disposition = part.getDisposition();
-			LOG.info("disposition: " + disposition);
+			LOG.fine("disposition: " + disposition);
 			if ((disposition != null) &&  ((disposition.equals(Part.ATTACHMENT)   ))   ) {
 				attachment = createAttachment(part.getFileName(),  part.getInputStream());
 				
